@@ -14,10 +14,10 @@ arcpy.CheckOutExtension('Spatial')
 
 
 # Local variables:
-polys = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_individual_polys.shp"
+polys = "D:\\projects\\ak_fire\\gis\\data\\firePerimeters_1940_2016_individual_polys.shp"
 akecoregions = "J:\\Base_data\\Boundaries\\ecoregions\\akecoregions.shp"
-tabAreas_level1 = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_akecoregions_lvl1.dbf"
-tabAreas_level2 = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_akecoregions_lvl2.dbf"
+tabAreas_level1 = "D:\\projects\\ak_fire\\gis\\data\\firePerimeters_1940_2016_akecoregions_lvl1.dbf"
+tabAreas_level2 = "D:\\projects\\ak_fire\\gis\\data\\firePerimeters_1940_2016_akecoregions_lvl2.dbf"
 
 # Tabulate areas for level 1 classifications
 arcpy.gp.TabulateArea_sa(polys, "FID", akecoregions, "LEVEL_1", tabAreas_level1, "30")

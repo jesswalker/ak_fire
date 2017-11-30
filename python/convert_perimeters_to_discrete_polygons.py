@@ -17,23 +17,23 @@ arcpy.env.overwriteOutput = True
 # ----------- User input required here -------------------------
 
 # Arc workspace
-env.workspace = "D:\\projects\\projects\\Fire_AK_reburn\\data'"
+env.workspace = "D:\\projects\\projects\\ak_fire\\gis\\data'"
 
 # Input file of polygons with overlapping perimeters
-input_file = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_gt1000ac_notPrescribed.shp"
+input_file = "D:\\projects\\ak_fire\\data\\firePerimeters_1940_2016_gt1000ac_notPrescribed.shp"
 
 # Dummy file of empty points
-fc_empty_pts = "D:\\projects\\Fire_AK_reburn\\data\\fc_empty_points.shp"
+fc_empty_pts = "D:\\projects\\ak_fire\\data\\fc_empty_points.shp"
 # -------------------------------------------------------------
 
 # Intermediate files - created and deleted
-dissolved_polys = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_dissolved_temp.shp"
-polys_and_gaps = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_indPolys_and_gaps_temp.shp"
-individual_pts = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_individual_pts_temp.shp"
+dissolved_polys = "D:\\projects\\ak_fire\\data\\firePerimeters_1940_2016_dissolved_temp.shp"
+polys_and_gaps = "D:\\projects\\ak_fire\\data\\firePerimeters_1940_2016_indPolys_and_gaps_temp.shp"
+individual_pts = "D:\\projects\\ak_fire\\data\\firePerimeters_1940_2016_individual_pts_temp.shp"
 
 # End files - created and retained
-individual_polys = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_individual_polys_bufferedIn300m.shp"
-final_pts = "D:\\projects\\Fire_AK_reburn\\data\\firePerimeters_1940_2016_dates_for_each_burn_bufferedIn300m.shp"
+individual_polys = "D:\\projects\\ak_fire\\data\\firePerimeters_1940_2016_individual_polys_bufferedIn300m.shp"
+final_pts = "D:\\projects\\ak_fire\\data\\firePerimeters_1940_2016_dates_for_each_burn_bufferedIn300m.shp"
 
 # In original polygon file:
 # Create field on which to dissolve polys; populate; dissolve

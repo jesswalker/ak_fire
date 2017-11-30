@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
 import arcpy
 from arcpy import env
-arcpy.env.workspace = "D:\\projects\\Fire_AK_reburn\\data\\temp2"
+arcpy.env.workspace = "D:\\projects\\ak_fire\\gis\\data\\temp2"
 
 # Set to overwrite
 arcpy.env.overwriteOutput = True

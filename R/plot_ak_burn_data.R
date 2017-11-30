@@ -26,17 +26,17 @@ library(ggplot2)
 library(lubridate)
 
 # Set folder paths
-path.in <- "D:/projects/Fire_AK_reburn/" 
+path.in <- "D:/projects/ak_fire" 
 #path.in <-"/Users/jesswalker/Desktop/akfire"
 
-path.plots <- "D:/projects/fire_AK_reburn/plots"
+path.plots <- "D:/projects/ak_fire/output/plots"
 
 # Load functions
-source(file.path(path.in, "scripts", "ak_functions.R"))
+source(file.path(path.in, "R", "ak_functions.R"))
 
 # Load data saved from 'process_alaska_burn_data.R'
 rdata <- "AK_reburn_data.RData"
-load(file = file.path(path.in, "R", rdata))
+load(file = file.path(path.in, "data", rdata))
 
 # Get starting and ending years for the dataset
 yr_start <- 1940 #year(min(x$date))

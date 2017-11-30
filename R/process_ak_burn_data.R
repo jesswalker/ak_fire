@@ -45,11 +45,11 @@
 #   - ak_functions.R, file of helper functions:
 # 
 #  Output:
-#   - Multiple summary tables of fire paramters
-#   - AK_reburn_data.RData
+#   - Multiple summary tables of fire parameters
+#   - AK_reburn_data.RData, which is necessary for plotting purposes
 #
 #
-# August 2016 JWalker, modified extensively since
+# August 2016 JWalker, modified extensively since 
 #
 ########################################################################### #
 
@@ -78,7 +78,7 @@ library(zoo) # for calculating moving average
 file.in <- "firePerimeters_1940_2016_burn_data_plus_ecoregions_w_perimeter_R.csv"
 rdata <- "AK_reburn_data.RData"    #"AK_reburn_files.RData"
 #path.in <- "/Users/jesswalker/Desktop/akfire"
-path.in <- "D:/projects/Fire_AK_reburn"
+path.in <- "D:/projects/ak_fire"
 #************************************ 
 
 
@@ -93,10 +93,10 @@ path.in <- "D:/projects/Fire_AK_reburn"
   sqm2ac <- 0.000247105
 
 # Load functions
-  source(file.path(path.in, "scripts", "ak_functions.R"))
+  source(file.path(path.in, "R", "ak_functions.R"))
 
 # Get input file
-  x <- read.csv(file.path(path.in, "tables", file.in), header = T)
+  x <- read.csv(file.path(path.in, "data", file.in), header = T)
 
 # Rename columns
   colNames <- c("ptid", "polyid", "acres", "perim", "lat", "lon", "date", "outdate", "parentid", "parentac", 
@@ -620,7 +620,7 @@ path.in <- "D:/projects/Fire_AK_reburn"
    x.grouped.burn.reburn = ddply(x.grouped.burn.reburn, c('ecoreg1', 'reburn'), transform, cumsum_ac = cumsum(sum_ac), total_ac = sum(sum_ac))
    
    
-  # write.csv(x.grouped.burn.reburn, file = "D:/projects/Fire_AK_reburn/tables/x_grouped_burn_reburn.csv", row.names = F)
+  # write.csv(x.grouped.burn.reburn, file = "D:/projects/ak_fire/tables/x_grouped_burn_reburn.csv", row.names = F)
   
   # ------------------------------------------------------------------- #
   # Fires by year/ecoregion ----
@@ -884,7 +884,7 @@ x.original  <- ddply(x, .(year, parentid, parentac, name), summarize,
 # Assign ecoregion type to the largest proportion of acreage
 x.original$ecoreg1 <- c("boreal", "maritime", "tundra")[max.col(x.original[c("bor_ac", "mar_ac", "tun_ac")])]
 
-write.csv(x.original, file = file.path(path.in, "tables", "x_original.csv"), row.names = F)
+#write.csv(x.original, file = file.path(path.in, "tables", "x_original.csv"), row.names = F)
 
 # assign decade to each row based on year
 x.startdates <- setDecade(x.original)
@@ -892,7 +892,7 @@ x.startdates <- setDecade(x.original)
 # get # of fires by ecoreg1
 x.nfires.eco1 <- ddply(x.original, .(year, ecoreg1), summarize,
                        n_fires = length(unique(parentid)))
-#write.csv(x.nfires.eco1, file = "D:/projects/Fire_AK_reburn/tables/x_nfires_eco1.csv", row.names = F)
+#write.csv(x.nfires.eco1, file = "D:/projects/ak_fire/tables/x_nfires_eco1.csv", row.names = F)
 
 # get startdates by year
 x.startdates.year <- ddply(x.startdates, .(year, ecoreg1), summarize, 
@@ -959,6 +959,6 @@ x.test <- ddply(x, .(parentid, name, burn_num), summarize,
 ####################################################### #
 
 # Save RData ----
-save.image(file = file.path(path.in, "R", rdata)) 
-print(paste0("R data file saved to ", file.path(path.in, "R", rdata)))  
+save.image(file = file.path(path.in, "data", rdata)) 
+print(paste0("R data file saved to ", file.path(path.in, "data", rdata)))  
 

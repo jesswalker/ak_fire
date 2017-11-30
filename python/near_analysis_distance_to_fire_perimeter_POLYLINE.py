@@ -1,32 +1,29 @@
 # ---------------------------------------------------------------------------
-# reburn_near_analysis.py
+# near_analysis_distance_to_fire_perimeter_POLYLINE.py
 #
 # Created on: 2017-11-15 JJWalker
 #
 # Description:
-# This script analyzes all burn/reburn pairs to retrieve the perimeter
+# This script returns the distances that a newer fire penetrated into
+# an older one. It first analyzes all burn/reburn pairs to retrieve the perimeter
 # shared between the reburn polygon and the original fire; i.e., the border of
-# the original fire "within" the more recent fire polygon.  It reverse-intersects
-# the perimeter of the entire reburn area with that shared perimeter to retrieve
-# the polyline perimeter of the remaining reburn area.  That portion is
-# converted to a set of points, and the distance from each point to the shared
-# line is calculated. That is, it retrieves the distances
-# that the newer fire penetrated into the older one.
+# the original fire "within" the more recent fire polygon.  It intersects
+# that shared perimeter with the perimeter of the entire reburn area to retrieve
+# the inverse portion: the perimeter of the remaining reburn area. That portion
+# is converted to a set of points, and the distance from each point to the
+# shared line is calculated.
 
-# 'pairwise_analysis' in ArcMap 10.4+ now does exactly what this script
-# does. Thanks, ESRI!
-
+# 'pairwise_analysis' in ArcMap 10.4+ now does a pairwise intersect.
 
 # Input files:
 
 # 1.  processed_x.shp
 
-# Shapefile created from the output of process_alaska_burn_data.R,
+# Shapefile created from the output of process_ak_burn_data.R,
 # which assigns burn numbers and fire intervals to the individual (i.e.,
 # non-overlapping) polygons created from the AICC database. The file contains
 # a point feature for each polygon burn, resulting in muliple entries for each
-# reburned polygon.
-# I.e.,
+# reburned polygon. E.g.,
 #
 # id ptid polyid  acres lat    lon     date       parentid  parentac  parentname burn_num
 #  ...
@@ -50,17 +47,17 @@
 #  reburns_x2_near_analysis_.shp
 #
 # Process:
-# - Choose a polygon that has burned multiple times (file: processed_x)
-# - Get parentID of parent (current) whole fire (processed_x)
-# - Use polyID and previous fire# to get previous fire parentID (processed_x)
-# - Intersect current and previous fires to get all common areas (reburns)
-#   This is the area that the newer fire burned w/in the older fire boundary
-# - Convert reburn to raster
-# - Convert raster to points
-# - Intersect previous fire and reburn areas to get line within newer fire
-# - Calculate distance of each point to line
-# - Merge all tables
-
+# - Cycle through polygons that have burned multiple times (processed_x.shp)
+# - Get parentID of parent (newer) whole fire (processed_x)
+# - Use polyID and older fire# to get older fire parentID (in processed_x)
+# - Intersect newer and older fires to get all common areas (reburns); i.e.,
+#   the area that the newer fire burned w/in the older fire
+# - Intersect reburn with older fire to get reburn perimeter in newer fire only
+# - Convert reburn polygon to polyline
+# - Get portion of reburn perimeter that excludes intersected perimeter portion
+# - Generate points along that perimeter
+# - Calculate distance of each point to line within newer fire (i.e., the
+#   shortest distance from one "side" of the reburn polygon to the other)
 
 # Notes:
 # - This script relies on shapefiles
@@ -84,7 +81,7 @@ arcpy.env.overwriteOutput = True
 
 # ********  INPUT REQUIRED HERE **************************
 # Paths
-arcpy.env.workspace = "D:\\projects\\Fire_AK_reburn\\data\\"
+arcpy.env.workspace = "D:\\projects\\ak_fire\\gis\\data\\"
 ws = os.path.join(arcpy.env.workspace, "temp")
 
 # Local variables
@@ -96,54 +93,53 @@ out_shp_name = "reburns_x" + str(reburn_num) + "_near_analysis" + filename_add +
 pt_file = "processed_x.shp"
 original_polys = "firePerimeters_1940_2016_gt1000ac_notPrescribed_copy.shp"
 
-# some commands require layers, not fcs
+# Some commands require layers, not fcs
 arcpy.MakeFeatureLayer_management(pt_file, "pt_lyr")
 arcpy.MakeFeatureLayer_management(original_polys, "orig_polys_lyr")
 
-# set up initial filter. Get the subset of burns < burn_num
+# Set up initial filter. Get the subset of burns < burn_num
 whereClause = '"burn_num" < ' + str(reburn_num + 1) + ' AND "acres" > 5' #AND "FID" < 50'
 arcpy.SelectLayerByAttribute_management("pt_lyr", "NEW_SELECTION", whereClause)
 
-# iterate through all polygons in the shapefile
+# Iterate through all polygons in the shapefile
 burn_num = "burn_num"
 poly_id_field = "polyid"
 parent_id_field = "parentid"
 
-# initialize lists to hold consolidated feature classes/tables
+# Initialize lists to hold consolidated tables
 fcs_list = []
-fcs_list2 = []
 
-# initialize counter
+# Initialize counter
 n_poly = 0
 
-# start the clock
+# Start the clock
 ts0 = time.time()
 
-# step through all rows in the POINTS layer
+# Step through all rows in the POINTS layer
 cursor = arcpy.SearchCursor("pt_lyr")
 for row in cursor:
     try:
         if row.getValue(burn_num) == reburn_num:
 
-            # track number of processed polygons
+            # Track number of processed polygons
             n_poly = n_poly + 1
 
-            # get the polygon and parent id of a burn
+            # Get the polygon and parent id of a burn
             poly_id = row.getValue(poly_id_field)
             newer_parent_id = row.getValue(parent_id_field)
 
-            # get the OLDER burn info for the same polygon
+            # Get the OLDER burn info for the same polygon
             sql_older_burn = '"polyid" = ' + str(poly_id) + ' AND "burn_num" = ' + str(reburn_num - 1)
 
-            # initialize cursor to find id of the older burn
+            # Initialize cursor to find id of the older burn
             cursor2 = arcpy.SearchCursor("pt_lyr", sql_older_burn)
 
-            # get both newer and older burn polys
+            # Get both newer and older burn polys
             for row2 in cursor2:
                 older_parent_id = row2.getValue(parent_id_field)  # get the older fire id
                 sql_newer_poly = '"parentid" = ' + str(newer_parent_id)
                 sql_older_poly = '"parentid" = ' + str(older_parent_id)
-                sql_both_polys = '"parentid" = ' + str(older_parent_id) + ' OR "parentid" = ' + str(newer_parent_id)  # sql to get both older, newer previous burn polys
+                sql_both_polys = '"parentid" = ' + str(older_parent_id) + ' OR "parentid" = ' + str(newer_parent_id)
                 print '----------------------------------'
                 print 'Processing fire FIDs ' + str(older_parent_id) + ' and ' + str(newer_parent_id)
 
@@ -155,14 +151,12 @@ for row in cursor:
                 arcpy.SelectLayerByAttribute_management("orig_polys_lyr", "NEW_SELECTION", sql_newer_poly)
                 arcpy.CopyFeatures_management("orig_polys_lyr", "in_memory/newer_fc")
 
-            # Intersect older fire and newer fire polygons to get overlapping sections (reburn areas)
+            # Intersect older and newer fire polygons to get overlapping sections (reburn areas)
                 arcpy.Intersect_analysis(["in_memory/older_fc", "in_memory/newer_fc"], "in_memory/reburn_poly", "ALL")
 
             # Intersect older fire and reburn area to get perimeter of older fire within newer burn
                 shared_line = os.path.join(ws, "shared_line" + str(n_poly) + ".shp")
                 arcpy.Intersect_analysis(["in_memory/older_fc", "in_memory/reburn_poly"], shared_line, "ALL", "#", "LINE")
-
-#----------------
 
             # Convert reburn polygon to polyline
                 arcpy.PolygonToLine_management("in_memory/reburn_poly", "in_memory/reburn_line")

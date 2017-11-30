@@ -7,7 +7,7 @@
 # This script analyzes all burn/reburn pairs to retrieve the length of
 # perimeter shared between a reburn and the older fire; i.e., the length
 # of border of the original fire "within" the more recent fire polygon.
-# Output is a table of polyline lenghts (in meters).
+# Output is a table of polyline lengths (in meters).
 
 # This script differs from earlier versions in that it intersects the previous
 # fire and current fire to get *all* intersection polygons.  Earlier versions
@@ -84,7 +84,7 @@ arcpy.env.overwriteOutput = True
 
 # ********  INPUT REQUIRED HERE **************************
 # Paths
-arcpy.env.workspace = "D:\\projects\\Fire_AK_reburn\\data\\"
+arcpy.env.workspace = "D:\\projects\\ak_fire\\gis\\data\\"
 ws = os.path.join(arcpy.env.workspace, "temp")
 
 # Local variables

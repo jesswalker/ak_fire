@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Buffered_CORE_AREAS.py
+# core_areas_BUFFERED.py
 #
 # Created on: 2017-11-08 JJWalker
 #
@@ -11,7 +11,6 @@
 
 # 'pairwise_analysis' in ArcMap 10.4+ now does exactly what this script
 # does. Thanks, ESRI!
-
 
 # Input files:
 
@@ -79,7 +78,7 @@ arcpy.env.overwriteOutput = True
 
 # ********  INPUT REQUIRED HERE **************************
 # Paths
-arcpy.env.workspace = "D:\\projects\\Fire_AK_reburn\\data\\"
+arcpy.env.workspace = "D:\\projects\\ak_fire\\gid\\data\\"
 ws = os.path.join(arcpy.env.workspace, "temp")
 
 # Local variables
@@ -92,50 +91,50 @@ out_shp_name = "reburns_x" + str(reburn_num) + "_core_areas_" + str(abs(buffer_s
 pt_file = "processed_x.shp"
 original_polys = "firePerimeters_1940_2016_gt1000ac_notPrescribed_copy.shp"
 
-# some commands require layers, not fcs
+# Some commands require layers, not fcs
 arcpy.MakeFeatureLayer_management(pt_file, "pt_lyr")
 arcpy.MakeFeatureLayer_management(original_polys, "orig_polys_lyr")
 
-# set up initial filter
+# Set up initial filter
 whereClause = '"burn_num" < ' + str(reburn_num + 1) + ' AND "acres" > 5 AND "FID" < 50'
 arcpy.SelectLayerByAttribute_management("pt_lyr", "NEW_SELECTION", whereClause)
 
-# iterate through all polygons in the shapefile
+# Iterate through all polygons in the shapefile
 burn_num = "burn_num"
 poly_id_field = "polyid"
 parent_id_field = "parentid"
 
-# we want the subset of burns < burn_num
+# We want the subset of burns < burn_num
 cursor = arcpy.SearchCursor("pt_lyr")
 
-# initialize lists to hold consolidated feature classes/tables
+# Initialize lists to hold consolidated feature classes/tables
 fcs_list = []
 
-# initialize counter
+# Initialize counter
 n_poly = 0
 
-# start the clock
+# Start the clock
 ts0 = time.time()
 
-# step through all rows in the POINTS layer
+# Step through all rows in the POINTS layer
 for row in cursor:
     try:
         if row.getValue(burn_num) == reburn_num:
 
-            # track number of processed polygons
+            # Track number of processed polygons
             n_poly = n_poly + 1
 
-            # get the polygon and parent id of a burn
+            # Get the polygon and parent id of a burn
             poly_id = row.getValue(poly_id_field)
             newer_parent_id = row.getValue(parent_id_field)
 
-            # get the PRIOR burn info for the same polygon
+            # Get the PRIOR burn info for the same polygon
             sql_older_burn = '"polyid" = ' + str(poly_id) + ' AND "burn_num" = ' + str(reburn_num - 1)
 
-            # initialize cursor to find id of the original burn
+            # Initialize cursor to find id of the original burn
             cursor2 = arcpy.SearchCursor("pt_lyr", sql_older_burn)
 
-            # get both current and previous burn polys
+            # Get both current and previous burn polys
             for row2 in cursor2:
                 older_parent_id = row2.getValue(parent_id_field)  # get the older fire id
                 sql_newer_poly = '"parentid" = ' + str(newer_parent_id)

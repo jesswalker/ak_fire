@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# reburn_near_analysis.py
+# near_analysis_distance_to_fire_perimeter_POLYGON.py
 #
 # Created on: 2017-11-15 JJWalker
 #
@@ -11,8 +11,7 @@
 # the distance from each point to the line.  That is, it retrieves the distances
 # that the newer fire penetrated into the older one.
 
-# 'pairwise_analysis' in ArcMap 10.4+ now does exactly what this script
-# does. Thanks, ESRI!
+# Superseded by near_analysis_distance_to_fire_perimeter_POLYLINE.py
 
 
 # Input files:
@@ -82,7 +81,7 @@ arcpy.env.overwriteOutput = True
 
 # ********  INPUT REQUIRED HERE **************************
 # Paths
-arcpy.env.workspace = "D:\\projects\\Fire_AK_reburn\\data\\"
+arcpy.env.workspace = "D:\\projects\\ak_fire\\gis\\data\\"
 ws = os.path.join(arcpy.env.workspace, "temp")
 
 # Local variables

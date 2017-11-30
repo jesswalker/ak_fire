@@ -39,8 +39,8 @@ library(plyr)  # ldply
 library(dplyr) # %>%, mutate
 
 # Set directories
-path.in <- "D:/projects/Fire_AK_reburn/"
-path.plots <- "D:/projects/Fire_AK_reburn/plots"
+path.in <- "D:/projects/ak_fire/"
+path.plots <- "D:/projects/ak_fire/plots"
 
 # Set input/output filenames
 filename.in <- "union_polygon_results.csv"

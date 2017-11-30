@@ -57,9 +57,7 @@
 # - Intersect current and previous fires to get all common areas
 # - PolygonNeighbors command on reburn polygon and previous fire to get perimeter
 # - Write table to dbf
-#
 # - Merge all tables
-
 
 # Notes:
 # - This script relies on shapefiles
@@ -83,7 +81,7 @@ arcpy.env.overwriteOutput = True
 
 # ********  INPUT REQUIRED HERE **************************
 # Paths
-arcpy.env.workspace = "D:\\projects\\Fire_AK_reburn\\data\\"
+arcpy.env.workspace = "D:\\projects\\ak_fire\\gis\\data"
 ws = os.path.join(arcpy.env.workspace, "temp")
 
 # Local variables
