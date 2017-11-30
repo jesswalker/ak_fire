@@ -1,6 +1,6 @@
 ########################################################################### #
 #
-# plot_union_fire_pairs.R
+# plot_union_fire_pairs.R 
 #
 # Objective:
 # This script ingests the file created via process_union_fire_pairs.R and

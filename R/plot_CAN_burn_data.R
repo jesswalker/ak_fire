@@ -1,4 +1,6 @@
 # plot_CAN_burn_data.R
+
+# Canadian data
 #
 # This script ingests the file created via process_cAN_burn_data.R.
 # August 2016

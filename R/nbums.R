@@ -1,3 +1,6 @@
+# plotting
+
+
 plot_opts <- theme(panel.grid.minor.x = element_blank(),
                    panel.grid.major.x = element_blank(), # hide gridlines
                    panel.grid.minor.y = element_blank(),

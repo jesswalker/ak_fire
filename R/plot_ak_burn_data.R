@@ -1,6 +1,6 @@
 ########################################################################### #
 #
-# plot_ak_burn_data.R
+# plot_ak_burn_data.R 
 #
 # Objective:
 # This script ingests the file created via process_ak_burn_data.R and

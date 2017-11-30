@@ -1,6 +1,6 @@
 ########################################################################### #
 #
-# process_burn_data.R
+# process_burn_data.R 
 #
 # Objective: This script ingests the attribute table of the Alaskan fire perimeters dataset. 
 # The original file of overlapping fire polygons was manipulated in ArcMap to create a 

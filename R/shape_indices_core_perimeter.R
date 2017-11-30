@@ -1,5 +1,5 @@
 # This script processes the shared perimeter and core areas files to retrieve 
-# basic landscape metrics.
+# basic landscape metrics. 
 
 setwd("D:/projects/Fire_AK_Reburn/tables")
 library(plyr)

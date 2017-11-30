@@ -1,3 +1,6 @@
+# Roy Petrakis
+
+# 
 rm(list=ls(all=TRUE))
 setwd("U://external/wgsc/data/BiophysicalRS/San Carlos LiDAR/Z_projects/LCS/G47/FY16/Roy/Projects/Alaska_Reburn/")
 .libPaths( c( .libPaths(), "U://external/wgsc/data/BiophysicalRS/San Carlos LiDAR/Z_projects/LCS/G47/FY16/Roy/R_packages") )

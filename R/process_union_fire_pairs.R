@@ -1,6 +1,6 @@
 ########################################################################### #
 #
-# process_union_fire_pairs.R
+# process_union_fire_pairs.R 
 #
 # Objective:
 # This script calculates the landscape metrics for any given pair of fires that spatially overlap.

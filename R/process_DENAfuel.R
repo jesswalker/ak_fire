@@ -1,4 +1,4 @@
-
+# 
 file.name <- "FirePerimeters_1970_2015_discDate_DENAfuel15kmbuffer_tabAreas.csv"
 
 x <- read.csv(file.path(path.in, file.name), header = T)
