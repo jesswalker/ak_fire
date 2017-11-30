@@ -1,0 +1,977 @@
+########################################################################### #
+#
+# plot_ak_burn_data.R
+#
+# Objective:
+# This script ingests the file created via process_ak_burn_data.R and
+# produces various plots of fire characteristics.
+#
+# Input:
+#   - AK_reburn_data.RData - datasets saved through process_ak_burn_data.R
+#
+# Output:
+#   - Multiple plots
+#
+# August 2016 JWalker, modified extensively 
+#
+########################################################################### #
+
+# ---- Set environment ----
+
+# Remove existing data and values
+rm(list=ls())
+
+# Load libraries
+library(ggplot2)
+library(lubridate)
+
+# Set folder paths
+path.in <- "D:/projects/Fire_AK_reburn/" 
+#path.in <-"/Users/jesswalker/Desktop/akfire"
+
+path.plots <- "D:/projects/fire_AK_reburn/plots"
+
+# Load functions
+source(file.path(path.in, "scripts", "ak_functions.R"))
+
+# Load data saved from 'process_alaska_burn_data.R'
+rdata <- "AK_reburn_data.RData"
+load(file = file.path(path.in, "R", rdata))
+
+# Get starting and ending years for the dataset
+yr_start <- 1940 #year(min(x$date))
+yr_end <- year(max(x$date))
+
+# Set consistent plot parameters
+dodge = position_dodge(0.16)
+theme_set(theme_bw())
+plot_opts <- theme(panel.grid.minor.x = element_blank(),
+                   panel.grid.major.x = element_blank(), # hide gridlines
+                   legend.key = element_blank(),  # remove boxes around legend items
+                   plot.title = element_text(hjust = 0.5)) # center title
+
+# Set palettes...lots of palettes
+#eco1Palette2 <- c("#fc8d62", "#8da0cb", "#66c2a5")  # pink, blue, green
+eco1Palette <- c("#45882b", "#003b98", "#ff5604") # green, blue, orange 
+eco1PaletteSub <- eco1Palette[c(1,3)]
+eco1PaletteBright <- c("forestgreen", "blue", "orange")
+eco1PaletteGray <- c("gray20", "gray65", "gray87")
+eco1PaletteGray2 <- c("gray65", "gray20", "gray87")
+eco2Palette <- c('#8c510a', '#bf812d', '#dfc27d','#f6e8c3','#c7eae5','#80cdc1','#35978f', '#01665e')
+eco2Palette2 <- c('#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00')
+defaultPalette <- c("#F8766D", "#00BFC4") # default ggplot colors:red (initial) blue (reburn)
+burnPalette <- c("red", "blue")
+borTunPalette <- c("chartreuse4", "chartreuse3", "blue4", "blue")
+borTunPaletteBright <- c("chartreuse1", "orangered1" )
+
+
+# ---- PLOTS ---- 
+
+# --------------------------------------------------------------------------------------- #
+# ACRES burned per year // BOREAL initial burns and reburns ####
+# --------------------------------------------------------------------------------------- #
+data.sub <- subset(x.burntype.sum, year >= yr_start)
+title <- paste0("Acres burned per year, ", yr_start, " - ", yr_end, "\n Boreal initial burns and reburns")
+plot.name <- "AK_Acres burned per year_initial and reburn_BOREAL.png" #, yr_start, "_", yr_end, ".png")
+
+p <- ggplot(data.sub, aes(x = year, y = bor_ac/1000, fill = reburn, shape = reburn)) + 
+        geom_bar(position = "dodge", stat = "identity") +
+        geom_line(aes(year, bor_10yrMove/1000, color = reburn, linetype = reburn), size = 0.7) +
+        labs(x = "Year", y = "Acres x1000") +
+        scale_fill_manual("Burn Type", labels = c("Initial", "Reburn"), values = c("gray55", "gray87")) + 
+        scale_color_manual("Burn Type", values = burnPalette, labels = c("Initial", "Reburn")) +
+        scale_linetype_manual("Burn Type", labels = c("Initial", "Reburn"), values = c(rep("solid", 2))) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) +
+        annotate("text", x = 1940, y = 5000, label = "Lines show 10-year moving average", 
+             fontface = "italic", hjust = 0, vjust = 0, size = 4) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# ACRES burned per year // MARITIME initial burns and reburns ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.burntype.sum, year >= yr_start)
+title <- paste0("Acres burned per year, ", yr_start, " - ", yr_end, "\n Maritime initial burns and reburns")
+plot.name <- "AK_Acres burned per year_initial and reburn_MARITIME.png" #_", yr_start, "_", yr_end, ".png")
+  
+p <- ggplot(data.sub, aes(x = year, y = mar_ac/1000, fill = reburn, shape = reburn)) + 
+        geom_bar(position = "dodge", stat = "identity") +
+        geom_line(aes(year, mar_10yrMove/1000, color = reburn, linetype = reburn), size = 0.7) + # add decadal mean
+        labs(x = "Year", y = "Acres x1000") +
+        scale_fill_manual("Burn Type", labels = c("Initial", "Reburn"), values = c("gray55", "gray87")) + 
+        scale_color_manual("Burn Type", labels = c("Initial", "Reburn"), values = burnPalette) +
+        scale_linetype_manual("Burn Type", labels = c("Initial", "Reburn"), values = c(rep("solid", 2))) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) +
+        annotate("text", x = 1990, y = 30, label = "Lines show 10-year moving average",
+             fontface = "italic", hjust = 0, vjust = 0, size = 4) +
+        annotate("text", x = 1952, y = 20, label = "Olga Bay Fire\n33,808ac", 
+             hjust = 0, vjust = 0, size = 4) +
+        annotate("text", x = 1999, y = 10, label = "Moser Bay\n(Olga Bay reburn)\n12,358ac", 
+             hjust = 0, vjust = 0, size = 4) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+  
+
+# --------------------------------------------------------------------------------------- #
+# ACRES burned per year // TUNDRA initial burns and reburns ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.burntype.sum, year >= yr_start)
+title <- paste0("Acres burned per year, ", yr_start, " - ", yr_end, "\n Tundra initial burns and reburns")
+plot.name <- "AK_Acres burned per year_initial and reburn_TUNDRA.png"# yr_start, "_", yr_end, ".png")
+  
+p <- ggplot(data.sub, aes(x = year, y = tun_ac/1000, fill = reburn, shape = reburn)) + 
+        geom_bar(position = "dodge", stat = "identity") +
+        geom_line(aes(year, tun_10yrMove/1000, color = reburn, linetype = reburn), size = 0.7) +
+        labs(x = "Year", y = "Acres x1000") +
+        scale_fill_manual("Burn Type", labels = c("Initial", "Reburn"), values = c("gray55", "gray87")) + 
+        scale_color_manual("Burn Type", labels = c("Initial", "Reburn"), values = burnPalette) +
+        scale_linetype_manual("Burn Type", labels = c("Initial", "Reburn"), values = c(rep("solid", 2))) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) +
+        annotate("text", x = 2015, y = 1750, label = "Lines show 10-year moving average", 
+             fontface = "italic", hjust = 1, vjust = 0, size = 4) +
+        annotate("text", x = 1959, y = 1250, label = "Kateel River #5 - 1.13 million ac\nAnvik River - 400,000 ac", 
+             hjust = 0, vjust = 0, size = 4) +
+        annotate("text", x = 1979, y = 700, label = "Kugruk - 260,900 ac\nGMT S 12 - 206,158 ac\nCDL E 14 - 139,152 ac", 
+             hjust = 0, vjust = 0, size = 4) +
+        ggtitle(title) 
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# NUMBER of fires per year // By level 1 ecoregions ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- x.nfires.eco1
+title <- paste0("Number of fires per year, ", yr_start, " - ", yr_end, "\n By level 1 ecoregions")
+plot.name <- "AK_Number of fires per year_ALL.png"#, yr_start, "_", yr_end, ".png")
+
+p <- ggplot(data.sub, aes(x = year, y = n_fires)) + 
+        geom_bar(stat = "identity", aes(fill = factor(ecoreg1, levels = c("boreal", "maritime", "tundra")))) +
+        geom_line(data = x.nfires.moveavg, aes(year, n_10yrMove), color = "red", size = 0.7) +
+        labs(x = "Year", y = "Number of fires") +
+        scale_fill_manual("Ecoregion", labels = c("Boreal", "Maritime", "Tundra"), values = eco1PaletteGray2) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) +
+        annotate("text", x = 1940, y = 190, label = "Line shows 10-year moving average for combined fires", 
+           fontface = "italic", hjust = 0, vjust = 0, size = 4) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# ACRES burned per year // By level 1 ecoregions (vertical) ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.ac.sum.long.eco1, year >= yr_start)
+title <- paste0("Acres burned per year, ", yr_start, " - ", yr_end, "\n By level 1 ecoregions")
+plot.name <- "AK_Acres burned per year_combined_ALL.png"
+
+p <- ggplot(data.sub, aes(x = year, y = eco1_ac/1000)) + 
+        geom_bar(stat = "identity", aes(fill = factor(eco1, levels = c("bor_ac", "mar_ac", "tun_ac")))) +
+        geom_line(data = x.acres.moveavg, aes(year, ac_10yrMove/1000), color = "red", size = 0.7) +
+        labs(x = "Year", y = "Acres x1000") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) +
+        scale_fill_manual("Ecoregion", labels = c("Boreal", "Maritime", "Tundra"), values = eco1PaletteGray2) +
+        annotate("text", x = 1940, y = 6000, label = "Line shows 10-year moving average for combined fires", 
+           fontface = "italic", hjust = 0, vjust = 0, size = 4) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# CUMULATIVE area per year // By level 1 ecoregions ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.burntype.csums, year >= yr_start)
+title <- paste0("Cumulative area burned per year, ", yr_start, " - ", yr_end, "\n By level 1 ecoregions")
+plot.name <- "AK_Area burned per year_initial and reburns_cumulative_ALL.png"
+
+p <- ggplot(data.sub, aes(year, cumsum_ac/total_ac, group = interaction(reburn, ecoreg1))) +
+        geom_step(size = 0.61, aes(linetype = interaction(reburn, ecoreg1), color=interaction(reburn, ecoreg1))) +
+        labs(x = "Year", y = "Proportion") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) +
+        scale_linetype_manual("Ecoregion and burn status",
+            labels = c("Boreal - 1st burn", "Boreal - Reburn", "Maritime - 1st burn", "Maritime - Reburn",
+                       "Tundra - 1st burn", "Tundra - Reburn"),
+            values = c('solid', 'dashed', 'solid', 'dashed', 'solid', 'dashed')) +
+        scale_color_manual("Ecoregion and burn status",
+            labels = c("Boreal - 1st burn", "Boreal - Reburn", "Maritime - 1st burn", "Maritime - Reburn",
+                       "Tundra - 1st burn", "Tundra - Reburn"),
+            values = c(eco1Palette[1], eco1Palette[1], eco1Palette[2], eco1Palette[2], eco1Palette[3],
+                       eco1Palette[3])) +
+        ggtitle(title) 
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE // Combined initial and reburns, level 1 ecoregions, by year ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.allfires.sum, year >= yr_start & !is.na(mean_start)) # & ecoreg1 != 'maritime' )
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, 
+                "\n Combined initial and reburn fires, by level 1 ecoregions")
+plot.name <- "AK_Start date per year_combined_linear_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_start, group = ecoreg1, color = ecoreg1)) +
+        geom_point(shape = 19, size = 1.9, position = dodge) + 
+        geom_errorbar(aes(ymax = mean_start + se_start, ymin = mean_start - se_start), 
+                 width = 0.31, size = 0.2, position = dodge, color = "black") +
+        geom_smooth(method = 'lm', se = FALSE, size = 0.4, span = 0.27) +  
+        labs(x = "Year", y ="Day of year") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick interval
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Maritime", "Tundra"), values = eco1Palette) +
+#       scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) +  
+#         annotate("text", x = 1990, y = 330, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"),
+#                                                    "mean_start", "year"), parse = TRUE, hjust = 0, vjust = 0) + #, color = "#F8766D") +
+#         annotate("text", x = 1990, y = 322, label = lm_eqn(subset(data.sub, ecoreg1 == "maritime"),
+#                                                    "mean_start", "year"), parse = TRUE, hjust = 0, vjust = 0) + #, color = "#7CAE00") +
+#         annotate("text", x = 1990, y = 314, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"),
+#                                                    "mean_start", "year"), parse = TRUE, hjust = 0, vjust = 0) + #, color = "#00BFC4") +
+#         annotate("text", x = 1990, y = 314, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+#        annotate("text", x = 1985, y = 325, label = "No statistical significance in trends over time ", hjust = 0, vjust = 0) +
+        annotate("text", x = 1952, y = 330, label = "Olga Bay - 26 Nov 1950", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE // Combined initial and reburns, level 1 ecoregions, by decade ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.startdates.decade, ecoreg1 != 'maritime' )
+title <- paste0("Average fire start date by decade, ", yr_start, " - ", yr_end, 
+                "\n By level 1 ecoregions")
+plot.name <- "AK_Start date per decade_combined_linear_ALL.png"
+
+p <- ggplot(data.sub, aes(decade, mean_start, group = ecoreg1)) + 
+      geom_line(aes(color = ecoreg1)) + 
+      geom_point(shape = 19, size = 2.1, aes(color = ecoreg1), position = dodge) +
+      geom_errorbar(aes(ymax = mean_start + se_start, ymin = mean_start - se_start), 
+                width = 0.31, size = 0.2, position = dodge, color = "black") +
+      ggtitle(title) +
+      labs(x = "Decade", y = "Day of year") + 
+      ylim(155, 200) +
+      scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) 
+  
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE // Combined initial and reburns, level 1 ecoregions, by decade - LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+# way too variable - don't bother
+
+data.sub <- subset(x.startdates, year >= yr_start & !is.na(doy) & ecoreg1 != 'maritime' )
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, 
+                "\n By level 1 ecoregions")
+plot.name <- "AK_Start date ecoregions.png"
+
+p <- ggplot(data.sub, aes(year, doy, group = ecoreg1, color = ecoreg1)) + 
+  geom_smooth(se = TRUE, size = 0.5, span = 0.9) + 
+  ggtitle(title) +
+  labs(x = "Decade", y = "Day of year") + 
+  scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) 
+
+p + plot_opts
+
+
+# ------------------------------------------------------------------------------------- #
+# START DATE // Combined initial and reburns, level 1 ecoregions, by year - LOESS ####
+# ------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.startdates.year, year >= yr_start & !is.na(mean_start) & ecoreg1 != "maritime")
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, 
+                "\n by level 1 ecoregions")
+plot.name <- "AK_Start date per year_combined_loess_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_start, group = ecoreg1, color = ecoreg1)) +
+        geom_smooth(se = TRUE, size = 0.5, span = 0.65) + 
+        labs(x = "Year", y = "Day of year") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) +
+        annotate("text", x = 1984, y = 210, label = "Shading shows 95% confidence intervals", hjust = 0, vjust = 0) +
+        coord_cartesian(ylim = c(135, 215)) +  # zoom plot w/o changing data
+        ggtitle(title)
+
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE // Split initial and reburns, level 1 ecoregions, by year - LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+# reburn fires are all fires that reburned any portion of land
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & !is.na(mean_start) & ecoreg1 != "maritime")
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, 
+                "\n Initial and reburn fires, by level 1 ecoregions")
+plot.name <- "AK_Start date per year_initial and reburn_loess_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_start, group = interaction(reburn, as.factor(ecoreg1)),
+                          color = interaction(reburn, as.factor(ecoreg1)), 
+                          shape = interaction(reburn, as.factor(ecoreg1)),
+                          linetype = interaction(reburn, as.factor(ecoreg1)))) +  
+  geom_smooth(se = T, fullrange = F, size = 0.5, alpha = 0.2, span = 1.0) + # span = 1.2,  
+  labs(x = "Year", y = "Day of year") +
+  scale_color_manual("Ecoregion and burn status", 
+                     labels = c("Boreal initial", "Boreal reburn", 
+                                "Tundra initial",  "Tundra reburn"),
+                     #values = eco1Palette[c(1, 1, 3, 3)]) +
+                     values = eco1PaletteSub[c(1, 1, 2, 2)]) +
+  scale_linetype_manual("Ecoregion and burn status",
+                        labels = c("Boreal initial", "Boreal reburn", 
+                                   "Tundra initial",  "Tundra reburn"),
+                        values = c("solid", "dashed", "solid", "dashed")) +
+  scale_shape_manual("Ecoregion and burn status", 
+                     labels = c("Boreal initial", "Boreal reburn", 
+                                "Tundra initial",  "Tundra reburn"),
+                     values = c(19, 21, 19, 21)) +
+  scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+  annotate("text", x = 1985, y = 215, label = "Shading shows 95% confidence intervals", hjust = 0, vjust = 0) +
+  coord_cartesian(ylim = c(135, 215)) +  # zoom plot w/o changing data
+  ggtitle(title)
+
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE // BOREAL burns/reburns ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 == "boreal")
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, 
+                "\n Boreal region, initial and reburn fires")
+plot.name <- "AK_Start date per year_initial and reburn_linear_BOREAL.png"
+
+p <- ggplot(data.sub, aes(year, mean_start, group = as.factor(reburn), color = as.factor(reburn))) + 
+        geom_point(shape = 19, size = 2) + 
+        geom_errorbar(aes(ymax = mean_start + se_start, ymin = mean_start - se_start), 
+                width = 0.31, size = 0.2, position = dodge, color = "black") +
+        geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+        labs(x = "Year", y = "Day of year") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        scale_color_discrete("Burn status", labels = c("Initial", "Reburn")) +
+        annotate("text", x = 1940, y = 250, label = lm_eqn(subset(data.sub, reburn == 0), "mean_start", "year"), 
+            parse = TRUE, hjust = 0, vjust = 0, color = defaultPalette[1]) +
+        annotate("text", x = 1940, y = 246, label = lm_eqn(subset(data.sub, reburn == 1), "mean_start", "year"), 
+            parse = TRUE, hjust = 0, vjust = 0, color = defaultPalette[2]) +
+        annotate("text", x = 1940, y = 240, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE - MARITIME burns/reburns ####
+# --------------------------------------------------------------------------------------- #
+
+# not pursued b/c so few fires in maritime
+
+# --------------------------------------------------------------------------------------- #
+# START DATE - TUNDRA burns/reburns ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 == "tundra")
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, 
+                "\n Tundra region, initial and reburn fires")
+plot.name <- "AK_Start date per year_initial and reburn_linear_TUNDRA.png"
+
+p <- ggplot(data.sub, aes(year, mean_start, group = as.factor(reburn), color = as.factor(reburn))) + 
+        geom_point(shape = 19, size = 2, position = dodge) + 
+        geom_errorbar(aes(ymax = mean_start + se_start, ymin = mean_start - se_start), 
+                width = 0.31, size = 0.2, position = dodge, color = "black") +
+        geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+        #geom_abline(slope = 0.017094, intercept = 149.564, color = "red") + #Theil-Sen results (had to remove NA rows)
+        #geom_abline(slope = -0.324207, intercept = 827.172304, color = "blue") + #reburn Theil-Sen (zyp.sen results)
+        labs(x = "Year", y ="Day of year") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        scale_color_discrete("Burn status", labels = c("Initial", "Reburn")) +
+#         annotate("text", x = 1980, y = 228, label = lm_eqn(subset(data.sub, reburn == 0), "mean_start", "year"), 
+#                    parse = TRUE, hjust = 0, vjust = 0, color = defaultPalette[1]) +
+#         annotate("text", x = 1980, y = 225, label = lm_eqn(subset(data.sub, reburn == 1), "mean_start", "year"), 
+#                    parse = TRUE, hjust = 0, vjust = 0, color = defaultPalette[2]) +
+        annotate("text", x = 1940, y = 330, label = "No statistical significance", hjust = 0, vjust = 0) +
+        #annotate("text", x = 1940, y = 320, label = "Fires in 1940 and 1950 do not have valid start dates", hjust = 0, vjust = 0) +
+        annotate("text", x = 1940, y = 320, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+  
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE - REBURNS - by ecoregion ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 1)
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, "\n Reburns only, by level 1 ecoregions")
+plot.name <- "AK_Fire start date_reburns_linear_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_start, group = ecoreg1, color = ecoreg1)) + 
+        geom_point(shape = 19, size = 2) + 
+        geom_errorbar(aes(ymax = mean_start + se_start, ymin = mean_start - se_start), width = 0.31, size = 0.2, color = "black") +
+        geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+        labs(x = "Year", y = "Day of year of fire start") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Maritime", "Tundra"), values = eco1Palette) +
+        annotate("text", x = 1940, y = 250, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"),
+                                              "mean_start", "year"), parse = TRUE, hjust = 0, color = eco1Palette[1] ) +
+        annotate("text", x = 1940, y = 245, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"),
+                                                     "mean_start", "year"), parse = TRUE, hjust = 0, color = eco1Palette[3]) +
+        annotate("text", x = 1940, y = 240, label = "Bars represent +/- 1 SE", hjust = 0) +
+        ggtitle(title)
+
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# START DATE // BOREAL burns, grouped by time since fire ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.int.sum, year >= yr_start & ecoreg1 == "boreal")
+title <- paste0("Average fire start date, ", yr_start, " - ", yr_end, 
+                "\n Boreal region reburns by fire intervals")
+plot.name <- "AK_Start date per year_combined_time since fire_BOREAL.png"
+
+p <- ggplot(data.sub, aes(year, mean_start, group = as.factor(int_gp), color = as.factor(int_gp))) + 
+  geom_point(shape = 19, size = 2) + 
+  # geom_errorbar(aes(ymax = mean_start + se_start, ymin = mean_start - se_start), 
+  #                width = 0.31, size = 0.2, position = dodge, color = "black") +
+  geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+  labs(x = "Year", y = "Day of year") +
+  scale_color_discrete("Burn interval (years)", labels = c("0-10", "11-30", "31-50", "> 50")) +
+  ggtitle(title)
+# annotate("text", x = 1978, y = 240, label = lm_eqn(data.sub, "mean_start", "year", 
+#         parse = TRUE, hjust = 0, vjust = 0, color = "#00BFC4")) +
+# annotate("text", x = 1978, y = 236, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) 
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+
+# --------------------------------------------------------------------------------------- #
+# SEASON LENGTH (first burn start date - last burn start date) ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.allfires.sum, year >= yr_start & ecoreg1 != 'maritime')
+title <- paste0("Duration of fire start dates, ", yr_start, " - ", yr_end, 
+                 "\n First start date to last start date in each year")
+plot.name <- "AK_Length of fire season_1st to last start date_ALL.png"
+
+p <- ggplot(data.sub, aes(year, length_start, group = ecoreg1, color = ecoreg1)) + 
+        geom_point(shape = 19, size = 2) + 
+        geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+        labs(x = "Year", y = "Length (days)") +
+        scale_x_continuous(breaks = seq(1940, yr_end, 5)) + # x axis tick intervals
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = c(eco1Palette[1], eco1Palette[3])) +
+        annotate("text", x = 1940, y = 200, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"), "length_start", "year"), 
+            parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = 1940, y = 192, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"), "length_start", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# FIRE LENGTH (start date - end date for each fire) ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 != 'maritime')
+title <- paste0("Average fire duration, ", yr_start, " - ", 
+                yr_end, "\n Fire start date to end date")
+plot.name <- "AK_Fire duration_initial and reburned_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_length, group = interaction(ecoreg1, reburn), 
+                          color = interaction(ecoreg1, reburn),
+                          shape = interaction(ecoreg1, reburn))) + 
+        geom_point(size = 2) + 
+        geom_errorbar(aes(ymax = mean_length + se_length, ymin = mean_length - se_length), 
+                      width = 0.32, size = 0.1, position = dodge, color = "black") +
+        geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+        labs(x = "Year", y = "Days") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals  'yr_start
+        scale_shape_manual("Ecoregion and burn status",
+                           labels = c("Boreal - 1st burn", "Boreal - Reburn", "Tundra - 1st burn", "Tundra - Reburn"),
+                           values = c(19, 21, 19, 21)) +
+                    # labels = c("Boreal - 1st burn", "Boreal - Reburn", "Maritime - 1st burn", 
+                    #            "Maritime - Reburn", "Tundra - 1st burn", "Tundra - Reburn"),
+                    # values = c(19, 21, 19, 21, 19, 21)) +
+        scale_color_manual("Ecoregion and burn status",
+                           labels = c("Boreal - 1st burn", "Boreal - Reburn", "Tundra - 1st burn", "Tundra - Reburn"),
+                           values = c(borTunPalette[1], borTunPalette[2], borTunPalette[3], borTunPalette[4])) +
+                    # labels = c("Boreal - 1st burn", "Boreal - Reburn", "Maritime - 1st burn", 
+                    #            "Maritime - Reburn", "Tundra - 1st burn", "Tundra - Reburn"),
+                    # values = c(eco1Palette[1], eco1Palette[1], eco1Palette[2], eco1Palette[2], eco1Palette[3],
+                   #             eco1Palette[3])) +
+        annotate("text", x = yr_start, y = 182, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal" & reburn == 0 & year > 1969), "mean_length", "year"), 
+                 parse = TRUE, hjust = 0, vjust = 0, color = borTunPalette[1]) +
+        annotate("text", x = yr_start, y = 176, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal" & reburn == 1 & year > 1969), "mean_length", "year"), 
+                 parse = TRUE, hjust = 0, vjust = 0, color = borTunPalette[2]) +
+        annotate("text", x = yr_start, y = 170, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra" & reburn == 0 & year > 1969), "mean_length", "year"), 
+                 parse = TRUE, hjust = 0, vjust = 0, color = borTunPalette[3]) +
+        annotate("text", x = yr_start, y = 164, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra" & reburn == 1 & year > 1969), "mean_length", "year"), 
+                 parse = TRUE, hjust = 0, vjust = 0, color = borTunPalette[4]) +
+        annotate("text", x = yr_start, y = 155, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# ACRES of reburn type (1st, 2nd, etc.) per year - no ecoregions ###
+# --------------------------------------------------------------------------------------- #
+# want log? Just add log10 to the aes
+
+data.sub <- subset(x.burn.ac.yr, year >= yr_start & burn_num > 1)
+title <- paste0("Acres in each reburn category, ", yr_start, " - ", yr_end)
+plot.name <- "AK_Acres burned per year_reburn categories.png"
+
+p <- ggplot(data.sub, aes(year, sum_acres/1000, group = as.factor(burn_num), 
+                          color = as.factor(burn_num))) +   
+        geom_point() + 
+        geom_smooth(method = "lm", se = F) + 
+        labs(x = "Year", y = "Acres x 1000") +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        scale_color_discrete("Burn frequency") +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# ACRES of reburn type (i.e., 1st, 2nd, etc.) per year // BAR PLOT ###
+# --------------------------------------------------------------------------------------- #
+# Boring 
+data.sub <- x.burn.ac
+title <- paste0("Acres in each burn category, ", yr_start, " - ", yr_end)
+plot.name <- paste0("AK_Acres in each burn category ", yr_start, "_", yr_end, ".png")
+
+p <- ggplot(data.sub, aes(burn_num, sum_acres), group = as.factor(burn_num), 
+                          fill = as.factor(burn_num), color = as.factor(burn_num)) +   
+  geom_bar(stat = 'identity') +
+  scale_y_log10() +
+  labs(x = "Burn number", y = "log(acres)") +
+  ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# LATITUDE of initial fires // year/ecoregion  - linear ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 0 & ecoreg1 != "maritime")
+title <- paste0("Average latitude of initial fire areas, ", yr_start, " - ", yr_end)
+plot.name <- "AK_Average latitude_initials only_linear_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_lat, group = ecoreg1, color = ecoreg1)) + 
+        geom_point(position = dodge) + 
+        geom_errorbar(aes(ymax = mean_lat + se_lat, ymin = mean_lat - se_lat), 
+                width = 0.31, size = 0.2, position = dodge, color = "black") +
+        geom_smooth(method = 'lm', se = FALSE, na.rm = TRUE, size = 0.4) +
+        labs(x = "Year", y = bquote("Latitude ("~degree*"N)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        annotate("text", x = yr_start, y = 69.2, 
+            label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"), "mean_lat", "year"), 
+            parse = TRUE, hjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = yr_start, y = 68.9, 
+            label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"), "mean_lat", "year"), 
+            parse = TRUE, hjust = 0, color = eco1Palette[3]) +
+        annotate("text", x = yr_start, y = 68.5, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# LATITUDE of initial fires only // year/ecoregion LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 0 & ecoreg1 != "maritime")
+title <- paste0("Average latitude of initial fire areas, ", yr_start, " - ", yr_end,'\nLOESS')
+plot.name <- "AK_Latitude _loess.png"
+
+p <- ggplot(data.sub, aes(year, mean_lat, group = ecoreg1, color = ecoreg1)) + 
+        geom_smooth(se = TRUE, size = 0.5, span = 0.7) +  
+        labs(x = "Year", y = bquote("Latitude ("~degree*"N)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+      #  annotate("text", x = 1989, y = 68.5, label = "Bars represent confidence interval", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# LATITUDE of reburns only // year/ecoregion ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 1 & ecoreg1 != "maritime")
+title <- paste0("Average latitude of reburn areas, ", yr_start, " - ", yr_end)
+plot.name <- "AK_Average latitude_reburns only_linear_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_lat, group = ecoreg1, color = ecoreg1)) +  
+        geom_point() + 
+        geom_errorbar(aes(ymax = mean_lat + se_lat, ymin = mean_lat - se_lat), 
+                width = 0.31, size = 0.2, position = dodge, color = "black") +
+        geom_smooth(method = 'lm', se = FALSE, na.rm = TRUE, size = 0.4) +
+        labs(x = "Year", y = bquote("Latitude ("~degree*"N)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        annotate("text", x = yr_start, y = 68.7, 
+           label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"), "mean_lat", "year"), 
+           parse = TRUE, hjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = yr_start, y = 68.4, 
+           label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"), "mean_lat", "year"), 
+           parse = TRUE, hjust = 0, color = eco1Palette[3]) +
+        ggtitle(title)
+p + plot_opts
+  
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# LATITUDE of reburns only // year/ecoregion - LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 1 & ecoreg1 != "maritime")
+title <- paste0("Average latitude of reburn areas, ", yr_start, " - ", yr_end,'\nLOESS')
+plot.name <- paste0("AK_Average latitude REBURNS_", yr_start, "_", yr_end, ".png")
+
+p <- ggplot(data.sub, aes(year, mean_lat, group = ecoreg1, color = ecoreg1)) +  
+        geom_smooth(se = TRUE, size = 0.4, span = 0.7) +  
+        labs(x = "Year", y = bquote("Latitude ("~degree*"N)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# LATITUDE of initial/reburns // year/ecoregion - linear ####
+# --------------------------------------------------------------------------------------- #
+
+# This works but is super messy.  Better to display w LOESS
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 != "maritime")
+title <- paste0("Average latitude of all fire areas, ", yr_start, " - ", yr_end)
+plot.name <- "AK_Average latitude per year_initial and reburn_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_lat, group = interaction(reburn, ecoreg1), 
+                          color = interaction(reburn, ecoreg1),
+                          shape = interaction(reburn, ecoreg1))) + 
+        geom_point(position = dodge) + 
+        geom_smooth(method = 'lm', se = FALSE, na.rm = TRUE, size = 0.4) +
+        geom_errorbar(aes(ymax = mean_lat + se_lat, ymin = mean_lat - se_lat), 
+                width = 0.31, size = 0.2, position = dodge, color = "black") +
+        labs(x = "Year", y = bquote("Latitude ("~degree*"N)")) +
+        ylim(61.5, 68.2) +
+        scale_shape_manual("Ecoregion and burn status",
+                     labels = c("Boreal - 1st burn", "Boreal - Reburn", "Tundra - 1st burn", "Tundra - Reburn"),
+                     values = c(19, 21, 19, 21)) +
+        scale_color_manual("Ecoregion and burn status",
+                     labels = c("Boreal - 1st burn", "Boreal - Reburn", "Tundra - 1st burn", "Tundra - Reburn"),
+                     values = eco1Palette[c(1,1,3,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        annotate("text", x = yr_start, y = 62.4, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal" & reburn == 0), "mean_length", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = yr_start, y = 62.2, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal" & reburn == 1), "mean_length", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = yr_start, y = 62, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra" & reburn == 0), "mean_length", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+        annotate("text", x = yr_start, y = 61.8, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra" & reburn == 1), "mean_length", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+        annotate("text", x = yr_start, y = 61.5, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# LATITUDE of initial/reburns // year/ecoregion - LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+# Better visualization
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 != "maritime")
+title <- paste0("Average latitude of initial and reburn fires, ", yr_start, " - ", yr_end,'\nLOESS')
+plot.name <- "AK_Average latitude_initial and reburns_loess_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_lat, group = interaction(reburn, as.factor(ecoreg1)),
+                          color = interaction(reburn, as.factor(ecoreg1)), 
+                          linetype = interaction(reburn, as.factor(ecoreg1)))) +  
+        geom_smooth(se = TRUE, fullrange = F, size = 0.5, span = 0.9, alpha = 0.2) +  
+        labs(x = "Year", y = bquote("Latitude ("~degree*"N)")) +
+        scale_color_manual("Ecoregion and burn status", 
+                     labels = c("Boreal initial", "Boreal reburn", 
+                                "Tundra initial",  "Tundra reburn"),
+                     values = eco1Palette[c(1, 1, 3, 3)]) +
+        scale_linetype_manual("Ecoregion and burn status",
+                        labels = c("Boreal initial", "Boreal reburn", 
+                                   "Tundra initial",  "Tundra reburn"),
+                        values = c("solid", "dashed", "solid", "dashed")) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+
+# --------------------------------------------------------------------------------------- #
+# LONGITUDE of initials // year/ecoregion - linear ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 0 & ecoreg1 != "maritime")
+title <- paste0("Average longitude of initial fire areas, ", yr_start, " - ", yr_end)
+plot.name <- "AK_Average longitude_initials only_linear_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_lon, color = ecoreg1, group = ecoreg1)) + 
+        geom_point() + 
+        geom_smooth(method = 'lm', se = FALSE, na.rm = TRUE, size = 0.4) +
+        labs("Year", y = bquote("Longitude ("~degree*"W)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), 
+                             values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        annotate("text", x = 1975, y = -142, 
+            label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"), "mean_lon", "year"), 
+            parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = 1975, y = -143, 
+           label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"), "mean_lon", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+        ggtitle(title) 
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# LONGITUDE of initials // year/ecoregion - LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 0 & ecoreg1 != "maritime")
+title <- paste0("Average longitude of initial fire areas, ", yr_start, " - ", yr_end,"\nLOESS")
+plot.name <- paste0("AK_Longitude INITIAL_", yr_start, "_", yr_end, "_loess.png")
+
+p <- ggplot(data.sub, aes(year, mean_lon, group = ecoreg1, color = ecoreg1)) + 
+        geom_smooth(se = TRUE, size = 0.5, span = 0.7) +  
+        labs(x = "Year", y = bquote("Longitude ("~degree*"W)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        # annotate("text", x = 1989, y = 68.5, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# LONGITUDE of reburns // year/ecoregion - LINEAR ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 1 & ecoreg1 != "maritime")
+title <- paste0("Average longitude of reburn areas, ", yr_start, " - ", yr_end)
+plot.name <- paste0("AK_Average longitude_reburns only_linear_ALL.png")
+
+p <- ggplot(data.sub, aes(year, mean_lon, group = ecoreg1, color = ecoreg1)) + 
+        geom_point() + 
+        geom_smooth(method = 'lm', se = FALSE, na.rm = TRUE, size = 0.4) +
+        labs(x = "Year", y = bquote("Longitude ("~degree*"W)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), 
+                             values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        annotate("text", x = yr_start + 30, y = -140, 
+           label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"), "mean_lon", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = yr_start + 30, y = -141, 
+           label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"), "mean_lon", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+        ggtitle(title)
+p + plot_opts
+  
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# LONGITUDE of reburns // year/ecoregion - LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & reburn == 1 & ecoreg1 != "maritime")
+title <- paste0("Average longitude of reburn areas, ", yr_start, " - ", yr_end,"\nLOESS")
+plot.name <- paste0("AK_Longitude REBURNS_", yr_start, "_", yr_end, "_loess.png")
+
+p <- ggplot(data.sub, aes(year, mean_lon, group = ecoreg1, color = ecoreg1)) + 
+        geom_smooth(se = TRUE, size = 0.4, fullrange = T, span = 0.8, alpha = 0.2) + 
+        labs(x = "Year", y = bquote("Longitude ("~degree*"W)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), 
+                     values = eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# LONGITUDE of combined // year/ecoregion - linear ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 != "maritime")
+title <- paste0("Average longitude of all fires, ", yr_start, " - ", yr_end)
+plot.name <- paste0("AK_Average longitude ALL_", yr_start, "_", yr_end, ".png")
+
+p <- ggplot(data.sub, aes(year, mean_lon, color = ecoreg1, group = ecoreg1)) + 
+        geom_point(size = 0.3) + 
+        geom_smooth(method = 'lm', se = FALSE, na.rm = TRUE, size = 0.4) +
+        labs(x = "Year", y = bquote("Longitude ("~degree*"W)")) +
+        scale_color_manual("Ecoregion", labels = c("Boreal", "Tundra"), values = 
+                             eco1Palette[c(1,3)]) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+        annotate("text", x = yr_start + 35, y = -142, 
+           label = lm_eqn(subset(data.sub, ecoreg1 == "boreal"), "mean_lon", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+        annotate("text", x = yr_start + 35, y = -143, 
+           label = lm_eqn(subset(data.sub, ecoreg1 == "tundra"), "mean_lon", "year"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+        ggtitle(title)
+  p + plot_opts
+  
+  ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# LONGITUDE of initial/reburns // year/ecoregion - linear ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 != "maritime")
+title <- paste0("Average longitude of all initial and reburn fires, ", yr_start, " - ", yr_end)
+plot.name <- paste0("AK_Average longitude ALL_", yr_start, "_", yr_end, ".png")
+
+p <- ggplot(data.sub, aes(year, mean_lon, group = interaction(reburn, ecoreg1), 
+                          color = interaction(reburn, ecoreg1),
+                          shape = interaction(reburn, ecoreg1))) + 
+  geom_point(position = dodge) + 
+  geom_smooth(method = 'lm', se = FALSE, na.rm = TRUE, size = 0.4) +
+  geom_errorbar(aes(ymax = mean_lon + se_lon, ymin = mean_lon - se_lon), 
+                width = 0.31, size = 0.2, position = dodge, color = "black") +
+  labs(x = "Year", y = bquote("Longitude ("~degree*"W)")) +
+  scale_shape_manual("Ecoregion and burn status",
+                     labels = c("Boreal - Initial", "Boreal - Reburn", "Tundra - Initial", "Tundra - Reburn"),
+                     values = c(19, 21, 19, 21)) +
+  scale_color_manual("Ecoregion and burn status",
+                     labels = c("Boreal - Initial", "Boreal - Reburn", "Tundra - Initial", "Tundra - Reburn"),
+                     values = eco1Palette[c(1,1,3,3)]) +
+  scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+# #  annotate("text", x = yr_start, y = 62.4, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal" & reburn == 0), "mean_length", "year"), 
+# #           parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+#   annotate("text", x = yr_start, y = 62.2, label = lm_eqn(subset(data.sub, ecoreg1 == "boreal" & reburn == 1), "mean_length", "year"), 
+#            parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[1]) +
+#   annotate("text", x = yr_start, y = 62, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra" & reburn == 0), "mean_length", "year"), 
+#            parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+#   annotate("text", x = yr_start, y = 61.8, label = lm_eqn(subset(data.sub, ecoreg1 == "tundra" & reburn == 1), "mean_length", "year"), 
+#            parse = TRUE, hjust = 0, vjust = 0, color = eco1Palette[3]) +
+#   annotate("text", x = yr_start, y = 61.5, label = "Bars represent +/- 1 SE", hjust = 0, vjust = 0) +
+  ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+
+# --------------------------------------------------------------------------------------- #
+# LONGITUDE of initial/reburns // year/ecoregion - LOESS ####
+# --------------------------------------------------------------------------------------- #
+
+# Consoliated plot of trends
+
+data.sub <- subset(x.grouped.burn.reburn, year >= yr_start & ecoreg1 != "maritime")
+title <- paste0("Average longitude of initial and reburn fires, ", yr_start, " - ", yr_end,'\nLOESS')
+plot.name <- "AK_Average longitude_initial and reburns_loess_ALL.png"
+
+p <- ggplot(data.sub, aes(year, mean_lon, group = interaction(reburn, as.factor(ecoreg1)),
+                          color = interaction(reburn, as.factor(ecoreg1)), 
+                          linetype = interaction(reburn, as.factor(ecoreg1)))) +  
+  geom_smooth(se = TRUE, fullrange = T, size = 0.5, span = 0.9, alpha = 0.2) +  
+  labs(x = "Year", y = bquote("Longitude ("~degree*"W)")) +
+  scale_color_manual("Ecoregion and burn status", 
+                     labels = c("Boreal initial", "Boreal reburn", 
+                                "Tundra initial",  "Tundra reburn"),
+                     values = eco1Palette[c(1, 1, 3, 3)]) +
+  scale_linetype_manual("Ecoregion and burn status",
+                        labels = c("Boreal initial", "Boreal reburn", 
+                                   "Tundra initial",  "Tundra reburn"),
+                        values = c("solid", "dashed", "solid", "dashed")) +
+  scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) + # x axis tick intervals
+  ggtitle(title)
+
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 11, height = 8, units = c("in"), dpi = 600)
+
+# --------------------------------------------------------------------------------------- #
+# ACRES of reburns by fire return interval // Decade ####
+# --------------------------------------------------------------------------------------- #
+
+plot.title <- paste0("Reburn acreages by fire return intervals, ", yr_start, " - ", yr_end)
+plot.name <- "AK_Acres_reburns only_by fire interval and decade.png"
+
+p <- ggplot(x.grouped.int.decade, aes(decade, summ_ac/1000, group = int_gp, fill= int_gp)) + 
+     geom_bar(stat = 'identity') + 
+     scale_fill_manual("Fire interval\n(years)", labels = c("0-10", "11-30", "31-50", "50+"),
+                    values = eco2Palette2) +
+     ggtitle(plot.title) +
+     labs(x = "Decade", y = "Acres x1000")
+
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+
+# --------------------------------------------------------------------------------------- #
+# PROPORTION of reburn acres by fire return interval // Decade ####
+# --------------------------------------------------------------------------------------- #
+
+plot.title <- paste0("Reburn acreage proportions by fire return intervals, ", yr_start, " - ", yr_end)
+plot.name <- "AK_Acres_reburns only_proportions_by fire interval and decade.png"
+
+p <- ggplot(x.grouped.int.decade.prop, aes(decade, prop, group = int_gp, fill= int_gp)) + 
+      geom_bar(stat = 'identity') + 
+      scale_fill_manual("Fire interval\n(years)", labels = c("0-10", "11-30", "31-50", "50+"),
+                    values = eco2Palette2) +
+      ggtitle(plot.title) +
+      labs(x = "Decade", y = "Proportion") 
+
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
