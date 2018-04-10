@@ -8,7 +8,8 @@
 #            GEE for subsets of fire complexes in Alaska.  The FRP files were
 #            intersected in Arc with the vector file of fire history to produce
 #            points that are tagged with FRP data, EVT data (in the encompassing
-#            MODIS 1-km pixel), and fire history data.
+#            MODIS 1-km pixel), and fire history data. The value in each EVT
+#            class column is the number of 30-m pixels in each 1-km MODIS pixel.
 #
 #   - mxda1_gee_<yyyy>_plus_fires_R.csv, where <yyyy> = 2003, 2004, 2005, 2009
 #
@@ -30,17 +31,26 @@ library(gstat)  # ""
 
 
 # Set paths
-path.in <- "D:/projects/ak_fire"
+path.in <- "D:/projects/ak_fire/"
 path.plots <- "D:/projects/ak_fire/output/plots/frp"
 
 source(file.path(path.in, "R", "ak_functions.R"))
 
+filenames <- c('mxd14a1_gee_2003_plus_fires_r.csv', 'mxd14a1_gee_2004_plus_fires_r.csv',
+           'mxd14a1_gee_2005_plus_fires_r.csv', 'mxd14a1_gee_2009_plus_fires_r.csv')
+
+# Read in all files to a single file
+x <- do.call(rbind, lapply(file.path(path.in, "data", filenames), read.csv, header=T))
+
+
+
+
 # Read in files
-for (year in c('2003', '2004', '2005', '2009')) {
+#for (year in c('2003', '2004', '2005', '2009')) {
   
   print(paste0('Year is ', year))
-  filename = paste0('mxd14a1_gee_', year, '_plus_fires_r.csv')
-  x <- read.csv(file.path(path.in, "data", filename), header = T)
+#  filename = paste0('mxd14a1_gee_', year, '_plus_fires_r.csv')
+#  x <- read.csv(file.path(path.in, "data", filename), header = T)
 
 # Retain only specified columns
   colNames <- c("FID", "FID_mxd14a", "index", "class11", "class12", "class21", "class2197", "class22", "class23",
@@ -95,6 +105,15 @@ for (year in c('2003', '2004', '2005', '2009')) {
 # Remove duplicates (all but the first--highest--one)
   x <- x[!duplicated(x$index), ]
 
+  
+# Retrieve the column with the highest # of pixels.
+# Look only at "class" columns
+
+ x$max_class <- apply(x, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
+ x$max_class <- as.factor(x$max_class)
+  
+  
+  
 # ------------------------------------ -
 # PLOTS
 # ------------------------------------
@@ -156,7 +175,7 @@ for (year in c('2003', '2004', '2005', '2009')) {
   
   ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
-# -------- by points
+# -------- by mean fire interval
   x.pts <- x.sub.int %>% group_by(year_int) %>% summarize(avg = mean(MaxFRP))
   
   title <- paste0("Mean FRP by year interval, ", year)
