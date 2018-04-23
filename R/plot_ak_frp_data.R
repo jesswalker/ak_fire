@@ -88,6 +88,15 @@ p + plot_opts
 ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
 
+# Plot by max vegetation class
+p <- ggplot(subset(x.t, (max_class %in% x.frp.class.sub$max_class) & (burn_num %in% c(1,2,3))), aes(burn_num, log10(MaxFRP))) + 
+      geom_boxplot() + 
+      facet_wrap( ~ class_name, ncol = 3) #+ 
+#      coord_cartesian(ylim = c(0, 800), expand = TRUE)
+p + plot_opts
+
+
+
 
 
 
