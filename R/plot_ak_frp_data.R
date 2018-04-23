@@ -53,22 +53,37 @@ plot_opts <- theme(panel.grid.minor.x = element_blank(),
 title <- "FRP by burn number, all years"
 plot.name <- "AK_FRP by burn number_all years.png"
 
+# Get means
+means <- aggregate(MaxFRP ~ burn_num, x, mean)
+
+# Plot boxplot with mean values 
 p <- ggplot(x, aes(as.factor(burn_num), MaxFRP)) + 
-  geom_boxplot() + 
-  ylim(0, 200) +
-  labs(x = "Burn number", y = "log FRP") +
+  geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
+  geom_point(data=means, aes(as.factor(burn_num), MaxFRP, shape = "mean"), size = 7) +
+  scale_shape_manual("", values = 18) +
+  geom_text(data = means, aes(label = round(MaxFRP, 2), y = MaxFRP + 16), hjust = -0.2) +
+  coord_cartesian(ylim = c(0,500), expand = TRUE) +
+  labs(x = "Burn number", y = "FRP") +
   ggtitle(title)
 p + plot_opts
 
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
-# log plot 
+
+# ------- PLOT by burn number, log plot
+title <- "Log FRP by burn number, all years"
+plot.name <- "AK_FRP by burn number_all years_log.png"
+
+
+# Plot boxplot with mean values 
 p <- ggplot(x, aes(as.factor(burn_num), log10(MaxFRP))) + 
-  geom_boxplot() + 
-  #ylim(0, 200) +
+  geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
+  geom_point(data=means, aes(as.factor(burn_num), log10(MaxFRP), shape = "mean"), size = 7) +
+  scale_shape_manual("", values = 18) +
+  geom_text(data = means, aes(label = round(log10(MaxFRP), 2), y = log10(MaxFRP) + 0.1), hjust = -0.2) +
   labs(x = "Burn number", y = "log FRP") +
   ggtitle(title)
 p + plot_opts
-
 
 ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
