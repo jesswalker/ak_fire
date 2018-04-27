@@ -6,6 +6,8 @@
 #
 # Input:     .RData file produced by process_ak_frp_data.R
 #
+# Output:     Box-plots of FRP by burn frequency (1x, 2x, 3x burns)
+#             
 #   
 #   JWalker 17 April 2018
 #  
@@ -29,7 +31,7 @@ path.plots <- "D:/projects/ak_fire/output/plots/frp"
 source(file.path(path.in, "R", "ak_functions.R"))
 
 # Load data saved from 'process_alaska_burn_data.R'
-rdata <- "process_ak_frp_data.R"
+rdata <- "process_ak_frp_data.RData"
 load(file = file.path(path.in, "data", rdata))
 
 
@@ -46,10 +48,10 @@ plot_opts <- theme(panel.grid.minor.x = element_blank(),
                    plot.title = element_text(hjust = 0.5)) # center title
 
 
-# All data, all years
+# ---- All data, all years -----
 # Only the highest burn count is retained to avoid overcounting contributions
 
-# ------- PLOT by burn number
+# ------- BOXPLOT by burn number
 title <- "FRP by burn number, all years"
 plot.name <- "AK_FRP by burn number_all years.png"
 
@@ -70,7 +72,7 @@ p + plot_opts
 ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
 
-# ------- PLOT by burn number, log plot
+# ------- BOXPLOT by burn number, log plot
 title <- "Log FRP by burn number, all years"
 plot.name <- "AK_FRP by burn number_all years_log.png"
 
@@ -88,16 +90,18 @@ p + plot_opts
 ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
 
-# Plot by max vegetation class
+#--------- BOXPLOT by max vegetation class
 p <- ggplot(subset(x.t, (max_class %in% x.frp.class.sub$max_class) & (burn_num %in% c(1,2,3))), aes(burn_num, log10(MaxFRP))) + 
       geom_boxplot() + 
-      facet_wrap( ~ class_name, ncol = 3) #+ 
+      facet_wrap( ~ class_name, ncol = 2) #+ 
 #      coord_cartesian(ylim = c(0, 800), expand = TRUE)
 p + plot_opts
 
+# -------- HISTOGRAM of distributions
+p <- ggplot(x, aes(x=log10(MaxFRP), fill = burn_num)) + 
+      geom_histogram(alpha = 0.5, position = "identity") 
 
-
-
+p + plot_opts
 
 
 # For individual years. This mostly groups data geographically as well.
