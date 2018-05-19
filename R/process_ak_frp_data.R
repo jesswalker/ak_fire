@@ -34,7 +34,7 @@ library(spdep)
 # Set paths
 path.in <- "D:/projects/ak_fire/"
 path.r <- "D:/projects/ak_fire/data"
-rdata <- "process_ak_frp_data.R"
+rdata <- "process_ak_frp_data.RData"
 path.plots <- "D:/projects/ak_fire/output/plots/frp"
 
 source(file.path(path.in, "R", "ak_functions.R"))
@@ -127,8 +127,11 @@ x$max_class <- as.factor(x$max_class)
 
 # Housekeeping
 rm(x.1season)
+
  
-# STATS 
+# ----------------------------------
+# STATS ----
+# ----------------------------------
 
 # FRP by burn count (data)
 x$burn_num <- as.factor(x$burn_num)
@@ -150,26 +153,34 @@ means$MaxFRP <- round(means[,2], 1)
 x.maxclass <- summary(x$max_class)
 
 # Get FRP by veg class
-x.frp.class <- ddply(x, .(max_class, burn_num), summarize,
-               avg = mean(MaxFRP),
-               med = median(MaxFRP),
-               n = length(burn_num))
+# x.frp.class <- ddply(x, .(max_class, burn_num), summarize,
+#                avg = mean(MaxFRP),
+#                med = median(MaxFRP),
+#                n = length(burn_num))
 
-x.frp.class <- x %>% 
-               group_by(max_class, burn_num) %>%
-               summarize (avg = mean(MaxFRP), 
-                          med=median(MaxFRP), 
-                          n=length(burn_num))
+x.maxclass.gp <- x %>% 
+                  group_by(max_class, burn_num) %>%
+                  summarize (avg = mean(MaxFRP), 
+                            med=median(MaxFRP), 
+                            n=length(burn_num))
+
+# Keep only those classes that appear at least twice
+x.maxclass.gp.top <- x.maxclass.gp[!(as.numeric(x.maxclass.gp$max_class) %in% which(table(x.maxclass.gp$max_class) < 2)), ]
+
+# Keep only those classes in which at least one level has 30 points
+x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$max_class %in% x.maxclass.gp.top$max_class[which(x.maxclass.gp.top$n > 10 &
+                                                                                                           x.maxclass.gp.top$burn_num == 3)], ]
+
+
+# Further restrict it to classes where the 3rd fire has > 10 points
+x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$max_class %in% x.maxclass.gp.top$max_class[which(x.maxclass.gp.top$n[x.maxclass.gp.top$burn_num == 3] > 10) ]]
+x.maxclass.gp.top2 <- k[k$max_class %in% k$max_class[which(k$n[k$burn_num == 3] > 10) ]]
 
 # ID classes with higher #s of points
-x.frp.class.sub <- subset(x.frp.class, n > 30)
-
-
-# Only keep those classes that have at least 30 points in burn_num 2
-x.frp.class.sub <- x.frp.class.sub[!(as.numeric(x.frp.class.sub$max_class) %in% which(table(x.frp.class.sub$max_class) < 2)),]
+x.maxclass.gp.top <- subset(x.maxclass.gp, n >= 30)
             
 # Assign class name
-x.frp.class.sub <- merge(x.frp.class.sub, evt_classes, by.x = "max_class", by.y = "class")
+x.maxclass.gp.top <- merge(x.frp.class.sub, evt_classes, by.x = "max_class", by.y = "class")
 
 # 
 # > x.frp.class.sub
@@ -204,7 +215,11 @@ x.frp.class.sub <- merge(x.frp.class.sub, evt_classes, by.x = "max_class", by.y 
 # Combine 
 x.t <- merge(x, evt_classes, by.x = "max_class", by.y = "class")
 
+# Calculate ANOVA
 
+x.anova <- aov(formula = MaxFRP ~ burn_num, data = x)
+summary(x.anova)
+TukeyHSD(x.anova, "burn_num")
 
 
 # Save data and environment settings   
