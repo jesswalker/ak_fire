@@ -76,8 +76,7 @@ library(zoo) # for calculating moving average
 # User input ----
 
 file.in <- "firePerimeters_1940_2016_burn_data_plus_ecoregions_w_perimeter_R.csv"
-rdata <- "AK_reburn_data.RData"    #"AK_reburn_files.RData"
-#path.in <- "/Users/jesswalker/Desktop/akfire"
+rdata <- "AK_reburn_data.RData"   
 path.in <- "D:/projects/ak_fire"
 #************************************ 
 
@@ -578,9 +577,9 @@ path.in <- "D:/projects/ak_fire"
   # By year/burn status/parentid - hard split between burns/reburns ---
   # -------------------------------------------------------------------- #
   
-  # Produce dataset of unique parentids by removing the "original" (once-burned) portions of
-  # any original/reburn paired set. This leaves a dataset that distinguishes fires that burn across
-  # unburned areas only (since 1940) from those that burn across any amount of a previously burned area. 
+  # Produce dataset of unique parent ids by removing the "original" (once-burned) portions of
+  # any original/reburn paired set. This leaves a dataset that distinguishes fires that only burn across
+  # unburned areas (since 1940) from those that burn across any amount of a previously burned area. 
   # 
   # ***** This is the file to use for examining burn vs. reburn characteristics, because there is a definitive
   # split between fires types.  It is not the file to use for summing individual polygon acreages, since it
@@ -917,7 +916,7 @@ x.startdates.decade <- x.startdates.decade[order(x.startdates.decade$ecoreg1), ]
 # --------------------------------------- #
 # Top 5 fires/reburns in each year ----
 # --------------------------------------- #
-# No one seems to like this data visualization much
+# No one seems to like this data summary much
 
   # Get the mean size (acres) of the top 5 fires/reburns in each year
   x.top5size <- ddply(x[which(x$size_rank < 6),], .(year, reburn), summarize,
