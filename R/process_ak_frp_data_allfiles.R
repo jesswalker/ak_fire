@@ -41,7 +41,7 @@ path.plots <- "D:/projects/ak_fire/output/plots/frp"
 
 source(file.path(path.in, "R", "ak_functions.R"))
 
-filenames.in <- list.files(file.path(path.in, "data/tables"), pattern = "*plus_fire_info.csv")
+filenames.in <- list.files(file.path(path.in, "data/tables"), pattern = "*plus_fire_info_bufferIn600m.csv")
 
 # Read in all files to a single file
 x.all <- do.call(rbind, lapply(file.path(path.in, "data/tables", filenames.in), read.csv, header=T))
@@ -83,28 +83,46 @@ colNames <- c("FID_tbl_Fe", "index", "FID_firePe",
 x <- x.all[, colNames]  
 
 evt_classes <- data.frame(class =  
-                c("class11","class12", "class21", "class2197","class22","class23",
+                c("class11","class12", "class21", "class2197","class22","class23", "class24",
                   "class2600","class2601","class2602","class2603", "class2604","class2605","class2606","class2607","class2608","class2609",
                   "class2610","class2611","class2612",
                   "class2631","class2633","class2634","class2635","class2636","class2638", "class2639",
                   "class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649",
                   "class2651", "class2652",
                   "class2671","class2677","class2678", "class2679",
-                  "class2682", "class2683", "class2684", "class2685",
-                  "class2740","class2742","class2743","class2744","class2745","class2746",
-                  "class2751","class2753","class2757",
-                  "class2763","class2773",
-                "class2776","class2777","class2782","class2786","class2793","class31"),
+                  "class2682", "class2683", "class2684", "class2685","class2686", "class2687", "class2688", "class2689",
+                  "class2690", "class2691", "class2692", "class2699",
+                  "class2709", "class2718", "class2719", 
+                  "class2720", 
+                  "class2730",
+                  "class2740","class2741", "class2742","class2743","class2744","class2745","class2746", "class2747",
+                  "class2751","class2753","class2756", "class2757", "class2758",
+                  "class2761", "class2762", "class2763","class2764",
+                  "class2771", "class2772", "class2773", "class2774", "class2776","class2777",
+                  "class2781", "class2782","class2783", "class2784", "class2785", "class2786", 
+                  "class2791", "class2792", "class2793", "class2794","class31", "class81", "class82"),
 
-            class_name = c("Water","Snow-Ice", "Dev-Open", "Burned", "Dev-Low", "Dev-Med", "WS Forest", "WS Wood",
-                  "Sprc-Lchn Wood", "WS-Hdwd Forest", "BS Forest","Brch Aspn", "Aspn-Steppe",
-                  "Pplr-Aspn", "Avanlanche Slp", "Aldr Shrub", "Brch-Wllw Shrub", "Bluejoint",          
-                  "Dry Grss", "Shrb Summit", "Herb Meadow", "Dryas Shrub", "Ericcs Shrub",   
-                  "Shrb-Lchn Shrub", "Aquatic Beds", "Herb Wetlands", "Woody Wetlands", "C-D Wetlands",       
-                  "Shrub Wetlands", "Floodplains", "Peatlands", "Riparian", "Swamp",
-                  "Tussock Tundra", "Shrb-Tussock Tundra", "Sparse", "Barren")  ) 
-
-
+class_name = c("Water","Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
+                   "WS", "WS", "BS", "WS", "BS", "BirchAspen", "Aspen", 
+                   "BalsPopAsp", 
+                   "Shrubland", "Shrubland", "Shrubland", "Grassland", "Grassland","Shrubland", 
+                   "Grassland", 
+                   "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", 
+                   "BirchAspen", "Shrubland", "Spruce", "Grassland", 
+                   "Hemlock", "Hemlock", "Hemlock", 
+                    "Grassland", "Shrubland", "Grassland",
+                   "WS", "WS", "WS", "Shrubland", 
+                   "Tundra", "Tundra", "Tundra", "Tundra", "Tundra",
+                   "Shrubland", "Shrubland", "Shrubland", 
+                   "Tundra", "Tundra", 
+                   "Grassland", "Grassland", 
+                   "Shrubland", "Shrubland", "Shrubland", "Peatland", "Marsh", "Tidal",
+                   "Tidal", "Wetland", "Wetland", "Wetland", "Wetland", "Grassland", "Wetland",
+                   "BS", "Shrubland", "Shrubland", "Shrubland", "Floodplain", "Floodplain", "Floodplain",
+                   "Floodplain", "Peatland", "Peatland","Peatland", "Peatland", "Shrubland", "Swamp",
+                   "Tundra", "Tundra","Tundra","Tundra","Tundra","Tundra","Barren", "Barren", "Barren",
+                   "Barren", "Barren", "Agriculture", "Agriculture"))
+               
 
 # Remove all NA-only columns
 x <- Filter(function(y) !all(is.na(y)), x)
