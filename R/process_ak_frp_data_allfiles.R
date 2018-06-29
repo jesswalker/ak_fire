@@ -22,7 +22,6 @@
 # Remove existing data and libraries from R environment
 rm(list=ls())
 
-
 # Load libraries
 library(lubridate) # dates
 library(dplyr)
@@ -32,56 +31,55 @@ library(sp)  # for semivariograms
 library(gstat)  # ""
 library(spdep)
 
-
 # Set paths
 path.in <- "D:/projects/ak_fire"
 path.r <- "D:/projects/ak_fire/data"
-rdata <- "process_ak_frp_data.RData"
+rdata <- "ak_frp_data.RData"
 path.plots <- "D:/projects/ak_fire/output/plots/frp"
 
 source(file.path(path.in, "R", "ak_functions.R"))
 
-filenames.in <- list.files(file.path(path.in, "data/tables"), pattern = "*plus_fire_info_bufferIn600m.csv")
+# Set vars
+load(file = file.path(path.in, "data", rdata))
 
-# Read in all files to a single file
-x.all <- do.call(rbind, lapply(file.path(path.in, "data/tables", filenames.in), read.csv, header=T))
+# if the data are already saved in an Rdata file, skip this part
+if (!file.exists(file.path(path.r, rdata))){
 
-# Column headings were screwed up...
+  # Get the relevant filenames
+  filenames.in <- list.files(file.path(path.in, "data/tables"), pattern = "*plus_fire_info_bufferIn600m.csv")
+  
+  # Read all files to a single file. Suppress warnings b/c of spurious "incomplete last line" error
+  suppressWarnings(x.all <- do.call(rbind, lapply(file.path(path.in, "data/tables", filenames.in), read.csv, header=T)))
+  
+  # Retain only specified columns
+  colNames <- c("index", "FID_firePe",
+  "class11", "class12", "class21", "class2197", "class22", "class23", "class24",     
+  "class2600", "class2601", "class2602", "class2603", "class2604", "class2605", "class2606", "class2607", "class2608", "class2609", 
+  "class2610", "class2611", "class2612",
+  "class2631", "class2633", "class2634", "class2635", "class2636", "class2638", "class2639", 
+  "class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649", 
+  "class2651", "class2652", 
+  "class2671", "class2677", "class2678", "class2679", 
+  "class2682", "class2683", "class2684", "class2685", "class2686", "class2687", "class2688", "class2689", 
+  "class2690", "class2691", "class2692", "class2699", 
+  "class2709", "class2718", "class2719", 
+  "class2720", 
+  "class2730", 
+  "class2740", "class2741", "class2742", "class2743", "class2744", "class2745", "class2746", "class2747", 
+  "class2751", "class2753", "class2756", "class2757", "class2758",     
+  "class2761", "class2762", "class2763", "class2764", 
+  "class2771", "class2772", "class2773", "class2774", "class2776", "class2777", 
+  "class2781", "class2782","class2783",  "class2784", "class2785", "class2786",     
+  "class2791", "class2792","class2793", "class2794", 
+  "class31", 
+  "class81", "class82",
+  "MaxFRP", "latitude", "longitude", 
+  "newdate", "FireYear", "FIREID", "DiscDate")
 
-# Switch columns from "classlas_" or "classlass" to "class"
-#names.sub <- names(x.all)[which((substring(names(x.all), 1, 8) == "classlas"))]
-#names(x.all)[which((substring(names(x.all), 1, 8) == "classlas"))] <- paste0("class", substring(names.sub, 2))
+  x <- x.all[, colNames]  
 
-
-# Retain only specified columns
-colNames <- c("index", "FID_firePe",
-"class11", "class12", "class21", "class2197", "class22", "class23", "class24",     
-"class2600", "class2601", "class2602", "class2603", "class2604", "class2605", "class2606", "class2607", "class2608", "class2609", 
-"class2610", "class2611", "class2612",
-"class2631", "class2633", "class2634", "class2635", "class2636", "class2638", "class2639", 
-"class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649", 
-"class2651", "class2652", 
-"class2671", "class2677", "class2678", "class2679", 
-"class2682", "class2683", "class2684", "class2685", "class2686", "class2687", "class2688", "class2689", 
-"class2690", "class2691", "class2692", "class2699", 
-"class2709", "class2718", "class2719", 
-"class2720", 
-"class2730", 
-"class2740", "class2741", "class2742", "class2743", "class2744", "class2745", "class2746", "class2747", 
-"class2751", "class2753", "class2756", "class2757", "class2758",     
-"class2761", "class2762", "class2763", "class2764", 
-"class2771", "class2772", "class2773", "class2774", "class2776", "class2777", 
-"class2781", "class2782","class2783",  "class2784", "class2785", "class2786",     
-"class2791", "class2792","class2793", "class2794", 
-"class31", 
-"class81", "class82",
-"MaxFRP", "latitude", "longitude", 
-"newdate", "FireYear", "FIREID", "DiscDate")
-
-x <- x.all[, colNames]  
-
-# Set up EVT classes and consolidated groups
-evt_classes <- data.frame(class =  
+  # Set up EVT classes and consolidated groups
+  evt_classes <- data.frame(max_class =  
                 c("class11","class12", "class21", "class2197","class22","class23", "class24",
                   "class2600","class2601","class2602","class2603", "class2604","class2605","class2606","class2607","class2608","class2609",
                   "class2610","class2611","class2612",
@@ -99,9 +97,10 @@ evt_classes <- data.frame(class =
                   "class2761", "class2762", "class2763","class2764",
                   "class2771", "class2772", "class2773", "class2774", "class2776","class2777",
                   "class2781", "class2782","class2783", "class2784", "class2785", "class2786", 
-                  "class2791", "class2792", "class2793", "class2794","class31", "class81", "class82"),
+                  "class2791", "class2792", "class2793", "class2794","class31", 
+                  "class81", "class82"),
 
-class_name = c("Water","Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
+  class_name = c("Water","Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
                    "WS", "WS", "BS", "WS", "BS", "BirchAspen", "Aspen", 
                    "BalsPopAsp", 
                    "Shrubland", "Shrubland", "Shrubland", "Grassland", "Grassland","Shrubland", 
@@ -122,105 +121,116 @@ class_name = c("Water","Snow", "Developed", "Burned", "Developed", "Developed", 
                    "Tundra", "Tundra","Tundra","Tundra","Tundra","Tundra","Barren", "Barren", "Barren",
                    "Barren", "Barren", "Agriculture", "Agriculture"))
 
-# index is unique to each point but cumbersome in its current form;
-# Replace with sequence of sequential numbers.
-levels(x$index) <- c(seq(1:length(levels(x$index))))
+  # index is unique to each point but cumbersome in its current form;
+  # Replace with sequence of sequential numbers.
+  levels(x$index) <- c(seq(1:length(levels(x$index))))
 
-# Rename index
-colnames(x)[which(colnames(x) == "index")] <- "ptid"
+  # Rename index
+  colnames(x)[which(colnames(x) == "index")] <- "ptid"
 
-# Set FID as unique id for each row
-x$FID <- 1:nrow(x)
+  # Set FID as unique id for each row
+  x$FID <- 1:nrow(x)
 
-# Reorder s.t. FID is first
-x <- x[, c(ncol(x), 1:(ncol(x)-1))]
+  # Reorder s.t. FID is first
+  x <- x[, c(ncol(x), 1:(ncol(x)-1))]
 
-# Remove NA-only columns
-x <- Filter(function(y) !all(is.na(y)), x)
+  # Remove NA-only columns
+  x <- Filter(function(y) !all(is.na(y)), x)
 
-# Remove rows in which MaxFRP == NA
-x <- x[!is.na(x$MaxFRP), ]
+  # Remove rows in which MaxFRP == NA
+  x <- x[!is.na(x$MaxFRP), ]
 
-# Format date columns and remove old ones
-x$modis_date <- as.Date(x$newdate, format = "%m/%d/%Y")
-x$fire_date <- as.Date(x$DiscDate, format = "%m/%d/%Y")
+  # Format date columns and remove old ones
+  x$modis_date <- as.Date(x$newdate, format = "%m/%d/%Y")
+  x$fire_date <- as.Date(x$DiscDate, format = "%m/%d/%Y")
 
-x$DiscDate <- NULL
-x$newdate <- NULL
+  x$DiscDate <- NULL
+  x$newdate <- NULL
 
-# MODIS MaxFRP is scaled by 10
-x$MaxFRP <- 0.1 * x$MaxFRP
+  # MODIS MaxFRP is scaled by 10
+  x$MaxFRP <- 0.1 * x$MaxFRP
 
-# Function to count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
-get_fire_order = function(df) {
+  # Function to count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
+  get_fire_order = function(df) {
     df <- df[order(df$fire_date), ]
     df$burn_num <- ave(df$FireYear, df$ptid, FUN = rank)
     df$reburn <- 0
     df[which(as.numeric(df$burn_num) > 1), ]$reburn <- 1
     df$year_int <- ave(df$FireYear, factor(df$ptid), FUN=function(t) c(0, diff(t))) #changed from NA
  #   df <- df[order(df$FID_mxd14a), ]
-return(df)
+  return(df)
+  }
+
+  # Calculate fire order
+  x <- get_fire_order(x)
+
+  # Remove all within-season burns: entries tagged as reburns but with year_int = 0.
+  # FID is unique to each point
+  x.1season <- subset(x, reburn == 1 & year_int == 0)
+  x <- x[!(x$FID %in% x.1season$FID), ]
+  
+  # Redo the rank calculate to account for changes
+  x <- get_fire_order(x)
+  
+  # Only keep burns for which the MODIS date is after the burn date;
+  # No sense in getting modis data for burns that haven't happened yet.
+  x <- x[which(x$modis_date > x$fire_date), ]
+  
+  # Retain only the last (highest) number of burns for a given point,
+  # otherwise a given FRP value can be associated with multiple burn states.
+  # Ensure file is ordered by ptid, then by burn_num (highest to lowest)
+  x <- x[order(x$ptid, -x$burn_num), ]
+
+  # Remove duplicates; i.e., all but the first point, which has the highest burn#
+  x <- x[!duplicated(x$ptid), ]
+
+  # Retrieve the column with the highest # of pixels.
+  # Look only at "class" columns
+  x$max_class <- apply(x, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
+
+  # Remove rows in which max_class == NA; this means none of the classes had a majority
+  x <- x[!is.na(x$max_class), ]
+
+  # Convert to factor
+  x$max_class <- as.factor(x$max_class)
+
+  # Merge with file of EVT classes to associate a name with each class
+  x <- merge(x, evt_classes, by = "max_class")
+
+  # Housekeeping
+  rm(x.1season)
+
+  # Save to RData file
+  save.image(file = file.path(path.r, rdata))
+  
+} else { # if the rdata file exists, load it
+  load(file.path(path.r, rdata))
 }
-
-# Calculate fire order
-x <- get_fire_order(x)
-
-# Remove all within-season burns: entries tagged as reburns but with year_int = 0.
-# FID is unique to each point
-x.1season <- subset(x, reburn == 1 & year_int == 0)
-x <- x[!(x$FID %in% x.1season$FID), ]
-  
-# Redo the rank calculate to account for changes
-x <- get_fire_order(x)
-  
-# Only keep burns for which the MODIS date is after the burn date;
-# No sense in getting modis data for burns that haven't happened yet.
-x <- x[which(x$modis_date > x$fire_date), ]
-  
-# Retain only the last (highest) number of burns for a given point,
-# otherwise a given FRP value can be associated with multiple burn states.
-# Ensure file is ordered by ptid, then by burn_num (highest to lowest)
-x <- x[order(x$ptid, -x$burn_num), ]
-
-# Remove duplicates; i.e., all but the first point, which has the highest burn#
-x <- x[!duplicated(x$ptid), ]
-
-# Retrieve the column with the highest # of pixels.
-# Look only at "class" columns
-x$max_class <- apply(x, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
-
-# Remove rows in which max_class == NA
-x <- x[!is.na(x$max_class), ]
-
-# Make sure it's a factor
-x$max_class <- as.factor(x$max_class)
-
-# Housekeeping
-rm(x.1season)
 
  
 # ----------------------------------
-# STATS ----
+# Calculate STATS ----
 # ----------------------------------
 
-# FRP by burn count (data)
+# Convert to factor
 x$burn_num <- as.factor(x$burn_num)
 
-# why is this flaky and doesn't work sometimes
+# FRP by burn count (data)
+# (why is this flaky and doesn't work sometimes?)
 x.frp <- x %>%
           group_by(as.factor(burn_num)) %>%
           summarize(avg = mean(MaxFRP),
-                    med = median(MaxFRP))
+                    med = median(MaxFRP),
+                    n = length(burn_num))
 
 # > x.frp
-# # A tibble: 4 x 3
-# `as.factor(burn_num)`   avg   med
-# <fct>                 <dbl> <dbl>
-#   1 1                    197.  77.8
-# 2 2                      176.  81.4
-# 3 3                      176.  75.7
-# 4 4                      132.  52.2
-
+# # A tibble: 4 x 4
+# `as.factor(burn_num)`   avg   med     n
+# <fct>                 <dbl> <dbl> <int>
+#   1 1                    197.  77.8 59532
+# 2 2                      176.  81.4  9807
+# 3 3                      176.  75.7   967
+# 4 4                      132.  52.2    67
 
 # # this works reliably...just less fun
  # x.frp2 <- ddply(x, .(burn_num), summarize,
@@ -228,40 +238,42 @@ x.frp <- x %>%
  #                med = median(MaxFRP))
  
 # Round decimals
-means$MaxFRP <- round(means[,2], 1)
+# means$MaxFRP <- round(means[,2], 1)
 
 # Get highest classes
 x.maxclass <- summary(x$max_class)
 
-# Get FRP by veg class
+# Get FRP by veg class. 
 # x.frp.class <- ddply(x, .(max_class, burn_num), summarize,
 #                avg = mean(MaxFRP),
 #                med = median(MaxFRP),
 #                n = length(burn_num))
 
 x.maxclass.gp <- x %>% 
-                  group_by(max_class, burn_num) %>%
+                  group_by(class_name, burn_num) %>%
                   summarize (avg = mean(MaxFRP), 
-                            med=median(MaxFRP), 
-                            n=length(burn_num))
+                            med = median(MaxFRP), 
+                            n = length(burn_num))
 
 # Keep only those classes that have at least 2 burn levels
-x.maxclass.gp.top <- x.maxclass.gp[!(as.numeric(x.maxclass.gp$max_class) %in% which(table(x.maxclass.gp$max_class) < 2)), ]
+x.maxclass.gp.top <- x.maxclass.gp[!(as.numeric(x.maxclass.gp$class_name) %in% which(table(x.maxclass.gp$class_name) < 2)), ]
+
+
+
+
 
 # Keep only those classes in which at least one level has 30 points
-x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$max_class %in% x.maxclass.gp.top$max_class[which(x.maxclass.gp.top$n > 10 &
+x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$class_name %in% x.maxclass.gp.top$class_name[which(x.maxclass.gp.top$n > 10 &
                                                                                                            x.maxclass.gp.top$burn_num == 3)], ]
-
-
 # Further restrict it to classes where the 3rd fire has > 10 points
-x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$max_class %in% x.maxclass.gp.top$max_class[which(x.maxclass.gp.top$n[x.maxclass.gp.top$burn_num == 3] > 10) ]]
+x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$class_name %in% x.maxclass.gp.top$class_name[which(x.maxclass.gp.top$n[x.maxclass.gp.top$burn_num == 3] > 10) ]]
 x.maxclass.gp.top2 <- k[k$max_class %in% k$max_class[which(k$n[k$burn_num == 3] > 10) ]]
 
 # ID classes with higher #s of points
 x.maxclass.gp.top <- subset(x.maxclass.gp, n >= 30)
             
 # Assign class name
-x.maxclass.gp.top <- merge(x.frp.class.sub, evt_classes, by.x = "max_class", by.y = "class")
+x.maxclass.gp.top <- merge(x.frp.class.sub, evt_classes, by.x = "class_name", by.y = "class")
 
 # 
 # > x.frp.class.sub
