@@ -251,7 +251,7 @@ x.frp.all <- x %>%
 # Round decimals
 # means$MaxFRP <- round(means[,2], 1)
 
-# Get evt classes wi
+# Get # of EVT classes with majorities
 x.maxevt <- summary(x$evt_group)
 
 # Get FRP by veg class. 
@@ -273,8 +273,8 @@ x.maxevt.gp.top <- x.maxevt.gp[!(as.numeric(x.maxevt.gp$evt_group) %in% which(ta
 x.maxevt.gp.top2 <- x.maxevt.gp.top[x.maxevt.gp.top$evt_group %in% x.maxevt.gp.top$evt_group[which(x.maxevt.gp.top$n > 10 &
                                                                                                            x.maxevt.gp.top$burn_num == 3)], ]
 # Further restrict it to classes where the 3rd fire has > 10 points
-x.maxevt.gp.top2 <- x.maxevt.gp.top[x.evt.gp.top$evt_group %in% x.maxevt.gp.top$evt_group[which(x.maxevt.gp.top$n[x.maxevt.gp.top$burn_num == 3] > 10) ]]
-x.maxevt.gp.top2 <- k[k$evt_group %in% k$evt_group[which(k$n[k$burn_num == 3] > 10) ]]
+x.maxevt.gp.top2 <- x.maxevt.gp.top[x.maxevt.gp.top$evt_group %in% x.maxevt.gp.top$evt_group[which(x.maxevt.gp.top$n[x.maxevt.gp.top$burn_num == 3] > 10) ],]
+#x.maxevt.gp.top2 <- k[k$evt_group %in% k$evt_group[which(k$n[k$burn_num == 3] > 10) ]]
 
 # ID classes with higher #s of points
 x.maxevt.gp.top <- subset(x.maxevt.gp, n >= 20)
