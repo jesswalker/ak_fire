@@ -30,8 +30,8 @@ path.plots <- "D:/projects/ak_fire/output/plots/frp"
 # Load functions
 source(file.path(path.in, "R", "ak_functions.R"))
 
-# Load data saved from 'process_alaska_burn_data.R'
-rdata <- "process_ak_frp_data.RData"
+# Load data saved from 'process_ak_frp_data.R'
+rdata <- "ak_frp_data.RData"
 load(file = file.path(path.in, "data", rdata))
 
 
@@ -91,11 +91,13 @@ ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = 
 
 
 #--------- BOXPLOT by max vegetation class
-p <- ggplot(subset(x.t, (max_class %in% x.frp.class.sub$max_class) & (burn_num %in% c(1,2,3))), aes(burn_num, log10(MaxFRP))) + 
+p <- ggplot(subset(x, (evt_group %in% x.frp.class.sub$evt_group) & (burn_num %in% c(1,2,3))), aes(burn_num, log10(MaxFRP))) + 
       geom_boxplot() + 
       facet_wrap( ~ class_name, ncol = 2) #+ 
 #      coord_cartesian(ylim = c(0, 800), expand = TRUE)
 p + plot_opts
+
+
 
 # -------- HISTOGRAM of distributions
 p <- ggplot(x, aes(x=log10(MaxFRP), fill = burn_num)) + 
