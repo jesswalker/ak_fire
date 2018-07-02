@@ -200,12 +200,15 @@ source(file.path(path.in, "R", "ak_functions.R"))
   # Merge with file of EVT classes to associate a name with each class
   x <- merge(x, evt_classes, by.x = "max_evt", by.y = "evt_number")
   
+  # Keep original set of data prior to excluding duplications
+  x.all <- x
+  
   # Get rid of all individual classes. Keep as separate file s.t. proportions
   # can be analyzed if desired
-  x.noclasses <- x[, -which(names(x) %in% names(x[grepl("class", names(x))]))]
+  x <- x[, -which(names(x) %in% names(x[grepl("class", names(x))]))]
 
   # Retain only the highest number of burns for a given point,
-  # otherwise a given FRP value can be associated with multiple burn states.
+  # otherwise a given FRP value will be associated with multiple burn states.
   # First ensure file is ordered by ptid, then by burn_num (highest to lowest)
   x <- x[order(x$ptid, -x$burn_num), ]
   
@@ -248,8 +251,8 @@ x.frp.all <- x %>%
 # Round decimals
 # means$MaxFRP <- round(means[,2], 1)
 
-# Get highest classes
-x.maxclass <- summary(x$max_class)
+# Get evt classes wi
+x.maxevt <- summary(x$evt_group)
 
 # Get FRP by veg class. 
 # x.frp.class <- ddply(x, .(max_class, burn_num), summarize,
@@ -257,31 +260,27 @@ x.maxclass <- summary(x$max_class)
 #                med = median(MaxFRP),
 #                n = length(burn_num))
 
-x.maxclass.gp <- x %>% 
-                  group_by(class_name, burn_num) %>%
+x.maxevt.gp <- x %>% 
+                  group_by(evt_group, burn_num) %>%
                   summarize (avg = mean(MaxFRP), 
                             med = median(MaxFRP), 
                             n = length(burn_num))
 
 # Keep only those classes that have at least 2 burn levels
-x.maxclass.gp.top <- x.maxclass.gp[!(as.numeric(x.maxclass.gp$class_name) %in% which(table(x.maxclass.gp$class_name) < 2)), ]
-
-
-
-
+x.maxevt.gp.top <- x.maxevt.gp[!(as.numeric(x.maxevt.gp$evt_group) %in% which(table(x.maxevt.gp$evt_group) < 2)), ]
 
 # Keep only those classes in which at least one level has 30 points
-x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$class_name %in% x.maxclass.gp.top$class_name[which(x.maxclass.gp.top$n > 10 &
-                                                                                                           x.maxclass.gp.top$burn_num == 3)], ]
+x.maxevt.gp.top2 <- x.maxevt.gp.top[x.maxevt.gp.top$evt_group %in% x.maxevt.gp.top$evt_group[which(x.maxevt.gp.top$n > 10 &
+                                                                                                           x.maxevt.gp.top$burn_num == 3)], ]
 # Further restrict it to classes where the 3rd fire has > 10 points
-x.maxclass.gp.top2 <- x.maxclass.gp.top[x.maxclass.gp.top$class_name %in% x.maxclass.gp.top$class_name[which(x.maxclass.gp.top$n[x.maxclass.gp.top$burn_num == 3] > 10) ]]
-x.maxclass.gp.top2 <- k[k$max_class %in% k$max_class[which(k$n[k$burn_num == 3] > 10) ]]
+x.maxevt.gp.top2 <- x.maxevt.gp.top[x.evt.gp.top$evt_group %in% x.maxevt.gp.top$evt_group[which(x.maxevt.gp.top$n[x.maxevt.gp.top$burn_num == 3] > 10) ]]
+x.maxevt.gp.top2 <- k[k$evt_group %in% k$evt_group[which(k$n[k$burn_num == 3] > 10) ]]
 
 # ID classes with higher #s of points
-x.maxclass.gp.top <- subset(x.maxclass.gp, n >= 30)
+x.maxevt.gp.top <- subset(x.maxevt.gp, n >= 20)
 
-x.maxclass.gp.top <- data.frame(x.maxclass.gp.top)
-x.maxclass.gp.top
+x.maxevt.gp.top <- data.frame(x.maxevt.gp.top)
+x.maxevt.gp.top
 
 # > x.maxclass.gp.top
 # class_name burn_num       avg    med     n
@@ -332,10 +331,33 @@ x.maxclass.gp.top
 # 45          WS        4  44.60000  44.60     1
 
 
-# Calculate ANOVA
+# Calculate 1-way ANOVA; burn_num
 x.anova <- aov(formula = MaxFRP ~ burn_num, data = x)
 summary(x.anova)
 TukeyHSD(x.anova, "burn_num")
+
+# Calculate 1-way ANOVA; evt class
+x.anova <- aov(formula = MaxFRP ~ evt_group, data = x)
+summary(x.anova)
+TukeyHSD(x.anova, "evt_group")
+
+# Calculate 2-way ANOVA; evt group and burn num
+x.anova <- aov(formula = MaxFRP ~ evt_group * burn_num, data = x)
+summary(x.anova)
+TukeyHSD(x.anova, which = "burn_num")
+
+# Calculate 1-way ANOVA based on #years between fire, FRP, by evt_group
+x.anova <- aov(formula = MaxFRP ~ as.factor(year_int) * evt_group, data = subset(x, reburn > 0))
+summary(x.anova)
+# > summary(x.anova)
+# Df    Sum Sq Mean Sq F value   Pr(>F)    
+# as.factor(year_int)              62  56216262  906714  10.557  < 2e-16 ***
+#   evt_group                        14   3454320  246737   2.873 0.000241 ***
+#   as.factor(year_int):evt_group   329  50451828  153349   1.785 3.71e-16 ***
+#  Residuals                     10435 896259713   85890
+TukeyHSD(x.anova, which = "evt_group")
+
+
 
 # Save data and environment settings   
  print(paste0("R data file saved to ", file.path(path.r, rdata)))
