@@ -200,7 +200,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
   # Merge with file of EVT classes to associate a name with each class
   x <- merge(x, evt_classes, by.x = "max_evt", by.y = "evt_number")
   
-  # Keep original set of data prior to excluding duplications
+  # Keep original set of data prior to excluding duplications for posterity
   x.all <- x
   
   # Get rid of all individual classes. Keep as separate file s.t. proportions
@@ -266,69 +266,65 @@ x.maxevt.gp <- x %>%
                             med = median(MaxFRP), 
                             n = length(burn_num))
 
-# Keep only those classes that have at least 2 burn levels
-x.maxevt.gp.top <- x.maxevt.gp[!(as.numeric(x.maxevt.gp$evt_group) %in% which(table(x.maxevt.gp$evt_group) < 2)), ]
-
-# Keep only those classes in which at least one level has 30 points
-x.maxevt.gp.top2 <- x.maxevt.gp.top[x.maxevt.gp.top$evt_group %in% x.maxevt.gp.top$evt_group[which(x.maxevt.gp.top$n > 10 &
-                                                                                                           x.maxevt.gp.top$burn_num == 3)], ]
-# Further restrict it to classes where the 3rd fire has > 10 points
-x.maxevt.gp.top2 <- x.maxevt.gp.top[x.maxevt.gp.top$evt_group %in% x.maxevt.gp.top$evt_group[which(x.maxevt.gp.top$n[x.maxevt.gp.top$burn_num == 3] > 10) ],]
-#x.maxevt.gp.top2 <- k[k$evt_group %in% k$evt_group[which(k$n[k$burn_num == 3] > 10) ]]
-
-# ID classes with higher #s of points
-x.maxevt.gp.top <- subset(x.maxevt.gp, n >= 20)
-
-x.maxevt.gp.top <- data.frame(x.maxevt.gp.top)
-x.maxevt.gp.top
-
-# > x.maxclass.gp.top
-# class_name burn_num       avg    med     n
+x.maxevt.gp <- data.frame(x.maxevt.gp)
+# > x.maxevt.gp
+#      evt_group burn_num       avg    med     n
 # 1  Agriculture        1  61.61667  41.55    24
 # 2  Agriculture        2  68.20000  68.20     1
-# 3       Barren        1 156.94000  98.70    35
-# 4       Barren        2  56.60000  56.60     2
-# 5   BirchAspen        1 175.08680  74.20  5947
-# 6   BirchAspen        2 174.45053  73.10  1508
-# 7   BirchAspen        3 199.33527  70.10   241
-# 8   BirchAspen        4 205.76897  30.00    29
-# 9           BS        1 232.20899  90.70 10338
-# 10          BS        2 209.34827  99.50  1243
-# 11          BS        3 113.83810  39.90    21
-# 12          BS        4  26.80000  26.80     1
-# 13      Burned        1  91.93478  47.90    23
-# 14      Burned        2  70.94643  39.75    28
-# 15      Burned        3  37.79231  17.90    13
-# 16  Floodplain        1 144.17485  65.00  2743
-# 17  Floodplain        2 150.51377  79.40   530
-# 18  Floodplain        3 133.24286  65.20    21
-# 19   Grassland        1 238.92504  92.40   611
-# 20   Grassland        2 123.14286  68.40    49
-# 21   Grassland        3 355.07500 528.40     8
-# 22    Peatland        1 112.45367  50.20   667
-# 23    Peatland        2 114.57907  57.20    43
-# 24   Shrubland        1 196.21391  73.05  4946
-# 25   Shrubland        2 139.85748  71.00   936
-# 26   Shrubland        3 139.45874  90.50   143
-# 27   Shrubland        4  77.36000  79.40     5
-# 28        Snow        1  56.46667  48.30     9
-# 29        Snow        2 347.00000 171.20    10
-# 30       Swamp        1 164.35455  81.50    33
-# 31       Swamp        2 132.98000  70.40    15
-# 32      Tundra        1 141.20876  64.10  6327
-# 33      Tundra        2 144.37394  74.70  1869
-# 34      Tundra        3 155.08300  58.40   253
-# 35      Tundra        4  37.86000  24.40    10
-# 36       Water        1 136.94788  84.70   165
-# 37       Water        2  83.43571  58.35    28
-# 38     Wetland        1 182.97015  75.60 14421
-# 39     Wetland        2 187.67659  75.40  1803
-# 40     Wetland        3 146.00741  73.90   135
-# 41     Wetland        4  97.06190  78.30    21
-# 42          WS        1 237.44518  85.20 13227
-# 43          WS        2 207.15316  96.30  1742
-# 44          WS        3 265.42879 126.40   132
-# 45          WS        4  44.60000  44.60     1
+# 3        Aspen        1  72.00000  22.20     7
+# 4       Barren        1 156.94000  98.70    35
+# 5       Barren        2  56.60000  56.60     2
+# 6   BirchAspen        1 175.08680  74.20  5947
+# 7   BirchAspen        2 174.45053  73.10  1508
+# 8   BirchAspen        3 199.33527  70.10   241
+# 9   BirchAspen        4 205.76897  30.00    29
+# 10          BS        1 232.20899  90.70 10338
+# 11          BS        2 209.34827  99.50  1243
+# 12          BS        3 113.83810  39.90    21
+# 13          BS        4  26.80000  26.80     1
+# 14      Burned        1  91.93478  47.90    23
+# 15      Burned        2  70.94643  39.75    28
+# 16      Burned        3  37.79231  17.90    13
+# 17  Floodplain        1 144.17485  65.00  2743
+# 18  Floodplain        2 150.51377  79.40   530
+# 19  Floodplain        3 133.24286  65.20    21
+# 20   Grassland        1 238.92504  92.40   611
+# 21   Grassland        2 123.14286  68.40    49
+# 22   Grassland        3 355.07500 528.40     8
+# 23     Hemlock        1 394.35000 394.35     2
+# 24       Marsh        1  26.90000  26.90     1
+# 25    Peatland        1 112.45367  50.20   667
+# 26    Peatland        2 114.57907  57.20    43
+# 27   Shrubland        1 196.21391  73.05  4946
+# 28   Shrubland        2 139.85748  71.00   936
+# 29   Shrubland        3 139.45874  90.50   143
+# 30   Shrubland        4  77.36000  79.40     5
+# 31        Snow        1  56.46667  48.30     9
+# 32        Snow        2 347.00000 171.20    10
+# 33      Spruce        1 183.35000 142.40     6
+# 34       Swamp        1 164.35455  81.50    33
+# 35       Swamp        2 132.98000  70.40    15
+# 36      Tundra        1 141.20876  64.10  6327
+# 37      Tundra        2 144.37394  74.70  1869
+# 38      Tundra        3 155.08300  58.40   253
+# 39      Tundra        4  37.86000  24.40    10
+# 40       Water        1 136.94788  84.70   165
+# 41       Water        2  83.43571  58.35    28
+# 42     Wetland        1 182.97015  75.60 14421
+# 43     Wetland        2 187.67659  75.40  1803
+# 44     Wetland        3 146.00741  73.90   135
+# 45     Wetland        4  97.06190  78.30    21
+# 46          WS        1 237.44518  85.20 13227
+# 47          WS        2 207.15316  96.30  1742
+# 48          WS        3 265.42879 126.40   132
+# 49          WS        4  44.60000  44.60     1
+
+
+# Keep only those levels that have at least 10 points
+x.maxevt.gp.top <- x.maxevt.gp[x.maxevt.gp$n > 10, ]
+
+# Keep only those classes that have at least 2 burn levels
+x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% which(table(x.maxevt.gp.top$evt_group) < 2)), ]
 
 
 # Calculate 1-way ANOVA; burn_num
