@@ -182,25 +182,25 @@ source(file.path(path.in, "R", "ak_functions.R"))
   # no sense in getting modis data for burns that haven't happened yet.
   x <- x[which(x$modis_date > x$fire_date), ]
   
-  # Get the EVT class column with the highest # of pixels
-  x$max_evt <- apply(x, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
+  # Record the EVT class that had the highest # of 30-m pixels in each 1-km MODIS pixel
+  x$max_evt_cat <- apply(x, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
   
-  # ...get the column value
-  x$max_evt_val <- apply(x[grepl("class", names(x))], 1, max, na.rm = TRUE)
+  # ...record the number of pixels that class represented
+  x$max_evt_pix <- apply(x[grepl("class", names(x))], 1, max, na.rm = TRUE)
   
-  # ...calc the proportion of pixels
-  x$max_evt_prop <- x$max_evt_val/max_landsat_pixels * 100
+  # ...calculate the proportion of pixels that class represented
+  x$max_evt_prop <- x$max_evt_pix/max_landsat_pixels * 100
 
   # Remove rows in which max_class == NA; this means none of the classes had a majority
-  x <- x[!is.na(x$max_evt), ]
+  x <- x[!is.na(x$max_evt_class), ]
 
   # Convert to factor
-  x$max_evt <- as.factor(x$max_evt)
+  x$max_evt_class <- as.factor(x$max_evt_class)
 
   # Merge with file of EVT classes to associate a name with each class
-  x <- merge(x, evt_classes, by.x = "max_evt", by.y = "evt_number")
+  x <- merge(x, evt_classes, by.x = "max_evt_class", by.y = "evt_number")
   
-  # Keep original set of data prior to excluding duplications for posterity
+  # Keep original set of data prior to excluding duplications
   x.all <- x
   
   # Get rid of all individual classes. Keep as separate file s.t. proportions
@@ -228,15 +228,15 @@ x$burn_num <- as.factor(x$burn_num)
 
 # FRP by burn count (data)
 # (why is this flaky and doesn't work sometimes?)
-x.frp.all <- x %>%
-              group_by(as.factor(burn_num)) %>%
-              summarize(avg = mean(MaxFRP),
-                    med = median(MaxFRP),
-                    n = length(burn_num))
+x.frp.summary <- x %>%
+                 group_by(burn_num) %>%
+                 summarize(avg = mean(MaxFRP),
+                           med = median(MaxFRP),
+                           n = length(burn_num))
 
-# > x.frp
+# > x.frp.summary
 # # A tibble: 4 x 4
-# `as.factor(burn_num)`   avg   med     n
+# `burn_num`   avg   med     n
 # <fct>                 <dbl> <dbl> <int>
 #   1 1                    197.  77.8 59532
 # 2 2                      176.  81.4  9807
@@ -326,36 +326,23 @@ x.maxevt.gp.top <- x.maxevt.gp[x.maxevt.gp$n > 10, ]
 # Keep only those classes that have at least 2 burn levels
 x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% which(table(x.maxevt.gp.top$evt_group) < 2)), ]
 
-
-# Calculate 1-way ANOVA; burn_num
-x.anova <- aov(formula = MaxFRP ~ burn_num, data = x)
-summary(x.anova)
-TukeyHSD(x.anova, "burn_num")
-
-# Calculate 1-way ANOVA; evt class
-x.anova <- aov(formula = MaxFRP ~ evt_group, data = x)
-summary(x.anova)
-TukeyHSD(x.anova, "evt_group")
+# --------------------------------- 
+# Stats
+# ---------------------------------
 
 # Calculate 2-way ANOVA; evt group and burn num
 x.anova <- aov(formula = MaxFRP ~ evt_group * burn_num, data = x)
 summary(x.anova)
 TukeyHSD(x.anova, which = "burn_num")
-
-# Calculate 1-way ANOVA based on #years between fire, FRP, by evt_group
-x.anova <- aov(formula = MaxFRP ~ as.factor(year_int) * evt_group, data = subset(x, reburn > 0))
-summary(x.anova)
-# > summary(x.anova)
-# Df    Sum Sq Mean Sq F value   Pr(>F)    
-# as.factor(year_int)              62  56216262  906714  10.557  < 2e-16 ***
-#   evt_group                        14   3454320  246737   2.873 0.000241 ***
-#   as.factor(year_int):evt_group   329  50451828  153349   1.785 3.71e-16 ***
-#  Residuals                     10435 896259713   85890
 TukeyHSD(x.anova, which = "evt_group")
 
 
+# Calculate anova: FRP vs year_int, evt, and burn_num
+x.anova <- aov(formula = MaxFRP ~ year_int * as.factor(evt_group) * burn_num, data = subset(x, reburn > 0))
+summary(x.anova)
+
 
 # Save data and environment settings   
- print(paste0("R data file saved to ", file.path(path.r, rdata)))
- save.image(file = file.path(path.r, rdata))
+print(paste0("R data file saved to ", file.path(path.r, rdata)))
+save.image(file = file.path(path.r, rdata))
 
