@@ -1,6 +1,13 @@
 ---
-title: "plot_ak_frp_data"
-output: html_notebook
+title: ## "FRP burn data plots"
+author: "JWalker"
+date: "2018-07-27"
+output:
+  html_notebook:
+    highlight: tango
+    mathjax: null
+    number_sections: no
+    theme: spacelab
 ---
 ```{r, echo=FALSE, warning=FALSE}
 ########################################################################### #
@@ -46,9 +53,16 @@ plot_opts <- theme(panel.grid.minor.x = element_blank(),
                    legend.key = element_blank(),  # remove boxes around legend items
                    plot.title = element_text(hjust = 0.5)) # center title
 ```
-## Boxplot by burn number
+### Plots related to the analysis of FRP data in Alaskan fires
+<br>
 
-```{r}
+#### **FRP ~ number of times an area has burned**
+<br>
+
+The FRP range is very large, so log(FRP) plots are more decipherable. Relative patterns are consistent, however.  
+Non-log plot of FRP vs. all year and all land cover type:
+
+```{r, echo=FALSE, eval=TRUE}
 title <- "FRP by burn number, all years, combined land cover"
 plot.name <- "AK_FRP by burn number_all years.png"
 
@@ -60,11 +74,178 @@ p <- ggplot(x, aes(as.factor(burn_num), MaxFRP)) +
             geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
             geom_point(data=x.frp.summary, aes(as.factor(burn_num), avg, shape = "avg"), size = 7) +
             scale_shape_manual("", values = 18) +
-            geom_text(data = means, aes(label = round(MaxFRP, 2), y = MaxFRP + 16), hjust = -0.2) +
+            geom_text(data = means, aes(label = round(MaxFRP, 2), y = MaxFRP + 16), 
+                      hjust = -0.4, vjust = 0.3) +
             coord_cartesian(ylim = c(0,500), expand = TRUE) +
             labs(x = "Burn number", y = "FRP") +
-            ggtitle(title)
+           ggtitle(title)
+ p + plot_opts
+
+# ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+```
+Same data in log format:
+```{r, echo = FALSE, eval=TRUE}
+
+# ------- BOXPLOT by burn number, log plot
+
+title <- "Log FRP by burn number, all years, combined land cover"
+plot.name <- "AK_FRP by burn number_all years_log.png"
+
+
+# Plot boxplot with mean values 
+p <- ggplot(x, aes(as.factor(burn_num), log10(MaxFRP))) + 
+  geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
+  geom_point(data=means, aes(as.factor(burn_num), log10(MaxFRP), shape = "mean"), size = 7) +
+  scale_shape_manual("", values = 18) +
+  geom_text(data = means, aes(label = round(log10(MaxFRP), 2), y = log10(MaxFRP) + 0.1), 
+            hjust = -0.4, vjust = 0.1) +
+  labs(x = "Burn number", y = "log FRP") +
+  ggtitle(title)
 p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+```
+```{r, echo=FALSE, eval=TRUE}
+
+#--------- BOXPLOT by max vegetation classes
+
+title <- "Log FRP by maximum vegetation classburn number, all years"
+plot.name <- "AK_FRP by burn number_all years_log.png"
+p <- ggplot(subset(x, (evt_group %in% x.maxevt.gp.top$evt_group)), aes(burn_num, log10(MaxFRP))) + 
+      geom_boxplot() + 
+      facet_wrap( ~ evt_group, ncol = 3) #+ 
+#      coord_cartesian(ylim = c(0, 800), expand = TRUE)
+p + plot_opts
+
+```
+
+
+
+```{r}
+
+# -------- HISTOGRAM of distributions
+p <- ggplot(x, aes(x=log10(MaxFRP), fill = burn_num)) + 
+      geom_histogram(alpha = 0.5, position = "identity") 
+
+p + plot_opts
+
+
+# For individual years. This mostly groups data geographically as well.
+
+for (yr in seq(2002, 2016)) {
+  
+  x.yr <- subset(x, FireYear == yr)
+  
+# ------- PLOT by burn number
+  title <- paste0("FRP by burn number, ", yr)
+  plot.name <- paste0("AK_FRP by burn number_", yr, ".png")
+
+  p <- ggplot(x.yr, aes(as.factor(burn_num), log10(MaxFRP))) + 
+    geom_boxplot() + 
+    #ylim(0, 1000) +
+    labs(x = "Burn number", y = "log FRP") +
+    ggtitle(title)
+  p + plot_opts
+
+  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# ------ PLOT by years since prior burn
+# Drop factors for which there are fewer than 10 points
+  keep <- levels(as.factor(x.yr$year_int))[table(x.yr$year_int) > 10]
+  x.sub.int <- x.yr[x.yr$year_int %in% keep, ]
+
+  title <- paste0("FRP by years since prior burn, ", yr)
+  plot.name <- paste0("AK_FRP by years since prior burn_", yr, ".png")
+
+  p <- ggplot(x.sub.int, aes(as.factor(year_int), log10(MaxFRP))) + 
+       geom_boxplot() + 
+       #ylim(0, 1000) + 
+       labs(x = "Years since prior burn", y = "log FRP") +
+       ggtitle(title)
+  p + plot_opts
+
+  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# ------- PLOT by year of fire
+  keep <- levels(as.factor(x.yr$FireYear))[table(x.yr$FireYear) > 10]
+  x.sub.yr <- x.yr[x.yr$FireYear %in% keep, ]
+
+  title <- paste0("FRP by year of fire, ", yr)
+  plot.name <- paste0("AK_FRP by year of fire_", yr, ".png")
+
+  p <- ggplot(x.sub.yr, aes(as.factor(FireYear), log10(MaxFRP))) + 
+       geom_boxplot() + 
+       #ylim(0, 1000) +
+       labs(x = "Year of fire", y = "log FRP") +
+       ggtitle(title)
+  p + plot_opts
+
+  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+# -------- PLOT by mean fire interval
+  x.pts <- x.sub.int %>% group_by(year_int) %>% summarize(avg = mean(MaxFRP))
+
+  title <- paste0("Mean FRP by year interval, ", yr)
+  plot.name <- paste0("AK_FRP mean FRP by year ", yr, ".png")
+
+  p <- ggplot(x.pts, aes(year_int, avg)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 5, y = 400, label = lm_eqn(x.pts, "avg", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# Calculate semivariograms
+x.copy <- x.yr
+
+# convert degrees to km distances
+x.copy$lon_km <- 110. * (x.copy$longitude - (-125))*cos(x.copy$latitude/(360/(2*pi)))
+x.copy$lat_km <- 110. * (x.copy$latitude-65)
+coordinates(x.copy) = ~lon_km+lat_km
+
+
+# ------- PLOT points in x,y km space  
+plot.name <- paste0("AK_FRP bubble plot ", yr, ".png")
+png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
+print(bubble(x.copy, zcol = 'MaxFRP', fill = T, do.sqrt = F, maxsize = 1.8))
+dev.off()
+
+# ------- PLOT variogram
+v = variogram(MaxFRP~1, x.copy)
+level <- c(0.5, 0.95)
+
+plot.name <- paste0("AK_FRP variogram ", yr, ".png")
+png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
+print(plot(v, fraction = 0.65, level=level))
+dev.off()
+
+
+# # ------PLOT directional variogram
+#   v.fit = fit.variogram(v, vgm("Sph"))
+#   x.copy.var.det <- variogram(MaxFRP~lat_km+lon_km, data = x.copy)
+#   
+#   plot.name <- paste0("AK_FRP directional variogram ", yr, ".png")
+#   p <- plot(x.copy.var.det)
+#   p
+
+plot.name <- paste0("AK_FRP directional variogram ", yr, ".png")
+
+x.copy.var.dir <- variogram(MaxFRP~1, data = x.copy, alpha = c(0, 45, 90, 135))
+png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
+print(plot(x.copy.var.dir))
+dev.off()
+
+}
 ```
 
 
