@@ -9,7 +9,7 @@ output:
     number_sections: no
     theme: spacelab
 ---
-```{r, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
 ########################################################################### #
 #
 # plot_ak_frp_data.R 
@@ -33,6 +33,7 @@ rm(list=ls())
 # Load libraries
 library(ggplot2)
 library(lubridate)
+library(dplyr)
 
 # Set folder paths
 path.in <- "D:/projects/ak_fire" 
@@ -56,10 +57,9 @@ plot_opts <- theme(panel.grid.minor.x = element_blank(),
 ### Plots related to the analysis of FRP data in Alaskan fires
 <br>
 
-#### **FRP ~ number of times an area has burned**
-<br>
 
-The FRP range is very large, so log(FRP) plots are more decipherable. Relative patterns are consistent, however.  
+Given the wide range of FRP values, log(FRP) plots are more decipherable. Relative patterns are consistent, however, as the comparison below shows.  
+
 Non-log plot of FRP vs. all year and all land cover type:
 
 ```{r, echo=FALSE, eval=TRUE}
@@ -72,7 +72,7 @@ means <- aggregate(MaxFRP ~ burn_num, x, mean)
 # Plot boxplot with mean values 
 p <- ggplot(x, aes(as.factor(burn_num), MaxFRP)) + 
             geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
-            geom_point(data=x.frp.summary, aes(as.factor(burn_num), avg, shape = "avg"), size = 7) +
+            geom_point(data=x.frp.summary, aes(as.factor(burn_num), mean, shape = "mean"), size = 7) +
             scale_shape_manual("", values = 18) +
             geom_text(data = means, aes(label = round(MaxFRP, 2), y = MaxFRP + 16), 
                       hjust = -0.4, vjust = 0.3) +
@@ -108,6 +108,7 @@ ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = 
 
 
 ```
+The above plot is not too helpful because FRP is evaluated across all land cover types.  Below is the same data broken out by land cover, where "land cover" is whichever EVT class covered the greatest proportion of each 1-km MODIS pixel.
 ```{r, echo=FALSE, eval=TRUE}
 
 #--------- BOXPLOT by max vegetation classes
@@ -116,94 +117,316 @@ title <- "Log FRP by maximum vegetation classburn number, all years"
 plot.name <- "AK_FRP by burn number_all years_log.png"
 p <- ggplot(subset(x, (evt_group %in% x.maxevt.gp.top$evt_group)), aes(burn_num, log10(MaxFRP))) + 
       geom_boxplot() + 
+    labs(x = "Burn number", y = "log FRP") +
       facet_wrap( ~ evt_group, ncol = 3) #+ 
 #      coord_cartesian(ylim = c(0, 800), expand = TRUE)
+p + plot_opts
+
+```
+Influence of number of years since prior burn on FRP, by individual EVT class.
+
+Birch/Aspen
+```{r}
+  
+title <- "Mean FRP by # of years since prior burn"
+
+# -------- PLOT by mean fire interval
+  x.sub <- subset(x, evt_group == "BirchAspen" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+  
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 5, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+
+```
+Black Spruce
+```{r}
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+
+```
+Burned
+```{r}
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+```
+Floodplain
+```{r}
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+
+```
+Grassland
+```{r}
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+
+```
+
+ Peatland
+```{r}
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+```
+ Shrubland
+```{r}
+  
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+
+```
+Swamp 
+```{r}
+  
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "Swamp" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.summary, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 30, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+```
+Tundra 
+```{r}
+  
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "Tundra" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.pts, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.pts, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+
+```
+Wetland 
+```{r}
+  
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.pts, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.pts, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+```
+
+WhtSpruce
+
+Has a nutty outlier
+```{r}
+  
+  
+# -------- PLOT by mean fire interval
+
+  x.sub <- subset(x, evt_group == "BlkSpruce" & year_int != 0)
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+
+  y.max <- max(x.summary$mean)
+
+  p <- ggplot(x.pts, aes(year_int, mean)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 2, y = 0.9*y.max, label = lm_eqn(x.pts, "mean", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+
+```
+
+
+
+
+
+```{r, echo=FALSE}
+
+# -------- HISTOGRAM of distributions
+
+p <- ggplot(x, aes(x=log10(MaxFRP), fill = burn_num)) + 
+      geom_histogram(alpha = 0.5, position = "identity",
+      binwidth = 0.1) +
+      xlab("log FRP")
+
 p + plot_opts
 
 ```
 
 
 
-```{r}
+```{r, echo=FALSE}
 
-# -------- HISTOGRAM of distributions
-p <- ggplot(x, aes(x=log10(MaxFRP), fill = burn_num)) + 
-      geom_histogram(alpha = 0.5, position = "identity") 
-
-p + plot_opts
-
-
-# For individual years. This mostly groups data geographically as well.
-
-for (yr in seq(2002, 2016)) {
-  
-  x.yr <- subset(x, FireYear == yr)
-  
-# ------- PLOT by burn number
-  title <- paste0("FRP by burn number, ", yr)
-  plot.name <- paste0("AK_FRP by burn number_", yr, ".png")
-
-  p <- ggplot(x.yr, aes(as.factor(burn_num), log10(MaxFRP))) + 
-    geom_boxplot() + 
-    #ylim(0, 1000) +
-    labs(x = "Burn number", y = "log FRP") +
-    ggtitle(title)
-  p + plot_opts
-
-  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
-
+x.yr <- x
 
 # ------ PLOT by years since prior burn
 # Drop factors for which there are fewer than 10 points
-  keep <- levels(as.factor(x.yr$year_int))[table(x.yr$year_int) > 10]
-  x.sub.int <- x.yr[x.yr$year_int %in% keep, ]
+  keep <- levels(as.factor(x$year_int))[table(x$year_int) > 10]
 
-  title <- paste0("FRP by years since prior burn, ", yr)
-  plot.name <- paste0("AK_FRP by years since prior burn_", yr, ".png")
-
-  p <- ggplot(x.sub.int, aes(as.factor(year_int), log10(MaxFRP))) + 
+  title <- "FRP by years since prior burn"
+  p <- ggplot(x, aes(as.factor(year_int), log10(MaxFRP))) + 
        geom_boxplot() + 
        #ylim(0, 1000) + 
        labs(x = "Years since prior burn", y = "log FRP") +
        ggtitle(title)
   p + plot_opts
 
-  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+  #ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
+```
 
-# ------- PLOT by year of fire
-  keep <- levels(as.factor(x.yr$FireYear))[table(x.yr$FireYear) > 10]
-  x.sub.yr <- x.yr[x.yr$FireYear %in% keep, ]
-
-  title <- paste0("FRP by year of fire, ", yr)
-  plot.name <- paste0("AK_FRP by year of fire_", yr, ".png")
-
-  p <- ggplot(x.sub.yr, aes(as.factor(FireYear), log10(MaxFRP))) + 
-       geom_boxplot() + 
-       #ylim(0, 1000) +
-       labs(x = "Year of fire", y = "log FRP") +
-       ggtitle(title)
-  p + plot_opts
-
-  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
-
+Slight upward trend in 
+```{r, eval = FALSE, echo=FALSE}
+  
 # -------- PLOT by mean fire interval
-  x.pts <- x.sub.int %>% group_by(year_int) %>% summarize(avg = mean(MaxFRP))
+  x.pts <- x %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
 
-  title <- paste0("Mean FRP by year interval, ", yr)
-  plot.name <- paste0("AK_FRP mean FRP by year ", yr, ".png")
+#  title <- paste0("Mean FRP by year interval, ", yr)
+#  plot.name <- paste0("AK_FRP mean FRP by year ", yr, ".png")
 
-  p <- ggplot(x.pts, aes(year_int, avg)) + 
+  p <- ggplot(x.pts, aes(year_int, mean)) + 
        geom_point() + 
        geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
        labs(x = "Years since prior burn", y = "FRP") +
-       annotate("text", x = 5, y = 400, label = lm_eqn(x.pts, "avg", "year_int"), 
+       annotate("text", x = 5, y = 400, label = lm_eqn(x.pts, "mean", "year_int"), 
            parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
        ggtitle(title)
   p + plot_opts
 
-ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+#ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+```
 
+
+
+
+```{r}
 
 # Calculate semivariograms
 x.copy <- x.yr
@@ -241,7 +464,7 @@ dev.off()
 plot.name <- paste0("AK_FRP directional variogram ", yr, ".png")
 
 x.copy.var.dir <- variogram(MaxFRP~1, data = x.copy, alpha = c(0, 45, 90, 135))
-png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
+#png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
 print(plot(x.copy.var.dir))
 dev.off()
 
