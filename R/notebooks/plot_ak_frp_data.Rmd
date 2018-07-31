@@ -44,6 +44,13 @@ source(file.path(path.in, "R", "ak_functions.R"))
 
 # Load data saved from 'process_ak_frp_data.R'
 rdata <- "ak_frp_data.RData"
+# https://drive.google.com/open?id=1w1O-Rife6raqvYMBWjTFrCT8IEm_PZM7
+
+data_url = "1w1O-Rife6raqvYMBWjTFrCT8IEm_PZM7"
+df <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", data_url))
+```
+
+
 load(file = file.path(path.in, "data", rdata))
 
 # Set consistent plot parameters
@@ -108,7 +115,7 @@ ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = 
 
 
 ```
-The above plot is not too helpful because FRP is evaluated across all land cover types.  Below is the same data broken out by land cover, where "land cover" is whichever EVT class covered the greatest proportion of each 1-km MODIS pixel.
+The above plot is not too helpful because FRP is evaluated across all land cover types.  Below is the same data broken out by land cover, where "land cover" is assigned to whichever EVT class covered the greatest proportion of each 1-km MODIS pixel.
 ```{r, echo=FALSE, eval=TRUE}
 
 #--------- BOXPLOT by max vegetation classes
@@ -130,9 +137,6 @@ White Spruce may have an increasing trend.
 Look at each individually, with STATS.
 
 ```{r}
-# --------------------------------- 
-# Stats
-# ---------------------------------
 
 # Calculate 2-way ANOVA; evt group and burn num
 x.anova <- aov(formula = MaxFRP ~ evt_group * burn_num, data = x)
