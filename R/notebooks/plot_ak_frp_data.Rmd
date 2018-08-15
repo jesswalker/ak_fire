@@ -50,7 +50,7 @@ data_url = "1w1O-Rife6raqvYMBWjTFrCT8IEm_PZM7"
 df <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", data_url))
 ```
 
-
+```{r, echo=FALSE}
 load(file = file.path(path.in, "data", rdata))
 
 # Set consistent plot parameters
@@ -64,12 +64,10 @@ plot_opts <- theme(panel.grid.minor.x = element_blank(),
 ### Plots related to the analysis of FRP data in Alaskan fires
 <br>
 
+Given the wide range of FRP values, log(FRP) transformations are appropriate.
 
-Given the wide range of FRP values, log(FRP) plots are more decipherable. Relative patterns are consistent, however, as the comparison below shows.  
+```{r, echo=FALSE, include=FALSE}
 
-Non-log plot of FRP vs. all year and all land cover type:
-
-```{r, echo=FALSE, eval=TRUE}
 title <- "FRP by burn number, all years, combined land cover"
 plot.name <- "AK_FRP by burn number_all years.png"
 
@@ -82,7 +80,7 @@ p <- ggplot(x, aes(as.factor(burn_num), MaxFRP)) +
             geom_point(data=x.frp.summary, aes(as.factor(burn_num), mean, shape = "mean"), size = 7) +
             scale_shape_manual("", values = 18) +
             geom_text(data = means, aes(label = round(MaxFRP, 2), y = MaxFRP + 16), 
-                      hjust = -0.4, vjust = 0.3) +
+                      hjust = -0.4, vjust = -0.3) +
             coord_cartesian(ylim = c(0,500), expand = TRUE) +
             labs(x = "Burn number", y = "FRP") +
            ggtitle(title)
@@ -91,7 +89,7 @@ p <- ggplot(x, aes(as.factor(burn_num), MaxFRP)) +
 # ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
 ```
-Same data in log format:
+
 ```{r, echo = FALSE, eval=TRUE}
 
 # ------- BOXPLOT by burn number, log plot
@@ -109,13 +107,15 @@ p <- ggplot(x, aes(as.factor(burn_num), log10(MaxFRP))) +
             hjust = -0.4, vjust = 0.1) +
   labs(x = "Burn number", y = "log FRP") +
   ggtitle(title)
+
+
 p + plot_opts
 
-ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+#ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
 
 ```
-The above plot is not too helpful because FRP is evaluated across all land cover types.  Below is the same data broken out by land cover, where "land cover" is assigned to whichever EVT class covered the greatest proportion of each 1-km MODIS pixel.
+The above plot is unhelpful because FRP is evaluated across all land cover types.  Below is the same data broken out by land cover, where "land cover" is assigned to whichever 2001 EVT class covered the greatest proportion of each 1-km MODIS pixel.
 ```{r, echo=FALSE, eval=TRUE}
 
 #--------- BOXPLOT by max vegetation classes
@@ -123,18 +123,15 @@ The above plot is not too helpful because FRP is evaluated across all land cover
 title <- "Log FRP by maximum vegetation classburn number, all years"
 plot.name <- "AK_FRP by burn number_all years_log.png"
 p <- ggplot(subset(x, (evt_group %in% x.maxevt.gp.top$evt_group)), aes(burn_num, log10(MaxFRP))) + 
-      geom_boxplot() + 
-    labs(x = "Burn number", y = "log FRP") +
-      facet_wrap( ~ evt_group, ncol = 3) #+ 
+      geom_boxplot(aes(fill=burn_num)) + 
+      labs(x = "Burn number", y = "log FRP") +
+      facet_wrap( ~ evt_group, ncol = 3) +
+      theme(legend.position = "none")
 #      coord_cartesian(ylim = c(0, 800), expand = TRUE)
 p + plot_opts
 
 ```
-Black Spruce, Burned, Tundra, and Wetland appear to have possibly decreasing FRP relationships with burn number.  
-
-White Spruce may have an increasing trend.
-
-Look at each individually, with STATS.
+Black Spruce, Burned, Tundra, and Wetland appear to have possibly decreasing FRP relationships with burn number. White Spruce may have an increasing trend. ANOVA results:
 
 ```{r}
 
@@ -142,35 +139,42 @@ Look at each individually, with STATS.
 x.anova <- aov(formula = MaxFRP ~ evt_group * burn_num, data = x)
 summary(x.anova)
 ```
-Now Tukey
+Tukey results:
 ```{r}
-
-TukeyHSD(x.anova, which = "burn_num")
-```
-
-```{r,eval=FALSE}
 
 TukeyHSD(x.anova, which = "evt_group")
 ```
 
+```{r,eval=FALSE, include=FALSE}
 
+TukeyHSD(x.anova, which = "evt_group")
+```
 
+<br> Influence of years since prior burn on FRP, all classes:
 
+```{r, echo=FALSE}
 
+x.yr <- x
 
+# ------ PLOT by years since prior burn
+# Drop factors for which there are fewer than 10 points
+  keep <- levels(as.factor(x$year_int))[table(x$year_int) > 10]
 
+  title <- "FRP by years since prior burn"
+  p <- ggplot(subset(x, year_int > 0), aes(year_int, log10(MaxFRP), group = year_int, fill = year_int)) + 
+       geom_boxplot() + 
+       labs(x = "Years since prior burn", y = "log FRP") +
+       ggtitle(title) +
+       scale_fill_continuous(name = "Years since fire")
+  p + plot_opts
 
+  #ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
+```
 
-  
-<br>
+Influence of number of years since prior burn on FRP, by individual EVT class. Only significant (p < 0.05) results are shown.
 
-
-
-
-Influence of number of years since prior burn on FRP, by individual EVT class.
-
-#### **Birch/Aspen** **
+#### **Birch/Aspen**
 ```{r, echo=FALSE, warning=FALSE}
   
 title <- "Mean FRP by # of years since prior burn"
@@ -188,12 +192,17 @@ title <- "Mean FRP by # of years since prior burn"
        annotate("text", x = 5, y = 0.9*y.max, label = lm_eqn(x.summary, "mean", "year_int"), 
            parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
        ggtitle(title)
+  
+  
   p + plot_opts
 
 
 ```
-#### **Black Spruce**
-```{r, echo=FALSE}
+
+ 
+```{r, echo=FALSE, include=FALSE}
+
+# BLACK SPRUCE
   
 # -------- PLOT by mean fire interval
 
@@ -210,7 +219,6 @@ title <- "Mean FRP by # of years since prior burn"
            parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
        ggtitle(title)
   p + plot_opts
-
 
 ```
 #### **Burned**
@@ -231,10 +239,12 @@ title <- "Mean FRP by # of years since prior burn"
            parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
        ggtitle(title)
   p + plot_opts
-
 ```
-#### **Floodplain**
-```{r, echo=FALSE}
+
+
+```{r, echo=FALSE,  include=FALSE}
+
+# FLOODPLAIN
   
 # -------- PLOT by mean fire interval
 
@@ -254,8 +264,11 @@ title <- "Mean FRP by # of years since prior burn"
 
 
 ```
-#### **Grassland**
-```{r, echo=FALSE}
+
+ 
+```{r, echo=FALSE, include=FALSE}
+
+# GRASSLAND
   
 # -------- PLOT by mean fire interval
 
@@ -276,8 +289,10 @@ title <- "Mean FRP by # of years since prior burn"
 
 ```
 
-#### **Peatland**
-```{r, echo=FALSE}
+
+```{r, echo=FALSE,  include=FALSE}
+
+# PEATLAND
   
 # -------- PLOT by mean fire interval
 
@@ -296,9 +311,12 @@ title <- "Mean FRP by # of years since prior burn"
   p + plot_opts
 
 ```
-#### **Shrubland**
-```{r, echo=FALSE}
-  
+
+
+```{r, echo=FALSE,  include=FALSE}
+
+# SHRUBLAND  
+
 # -------- PLOT by mean fire interval
 
   x.sub <- subset(x, evt_group == "Shrubland" & year_int != 0)
@@ -315,10 +333,12 @@ title <- "Mean FRP by # of years since prior burn"
        ggtitle(title)
   p + plot_opts
 
-
 ```
-#### **Swamp**
-```{r, echo=FALSE}
+
+
+```{r, echo=FALSE,  include=FALSE}
+
+# SWAMP
 
 # -------- PLOT by mean fire interval
 
@@ -338,7 +358,8 @@ title <- "Mean FRP by # of years since prior burn"
 
 ```
 #### **Tundra**
-```{r, echo=FALSE}
+Not significant (but p = 0.065)
+```{r, echo=FALSE,include=FALSE}
   
 # -------- PLOT by mean fire interval
 
@@ -359,8 +380,7 @@ title <- "Mean FRP by # of years since prior burn"
 
 ```
 #### **Wetland**
-```{r, echo=FALSE}
-  
+```{r, echo=FALSE,  include=FALSE}
   
 # -------- PLOT by mean fire interval
 
@@ -381,15 +401,14 @@ title <- "Mean FRP by # of years since prior burn"
 ```
 
 #### **White Spruce**
-
-Has a nutty outlier
+Not significant but has a nutty outlier
 ```{r, echo=FALSE, warning=FALSE}
   
   
 # -------- PLOT by mean fire interval
 
   x.sub <- subset(x, evt_group == "WhtSpruce" & year_int != 0)
-  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = mean(MaxFRP))
+  x.summary <- x.sub %>% group_by(year_int) %>% summarize(mean = median(MaxFRP))
 
   y.max <- max(x.summary$mean)
 
@@ -405,6 +424,7 @@ Has a nutty outlier
 
 ```
 
+Histogram of FRP distributions
 ```{r, echo=FALSE}
 
 # -------- HISTOGRAM of distributions
@@ -418,27 +438,6 @@ p + plot_opts
 
 ```
 
-
-
-```{r, echo=FALSE}
-
-x.yr <- x
-
-# ------ PLOT by years since prior burn
-# Drop factors for which there are fewer than 10 points
-  keep <- levels(as.factor(x$year_int))[table(x$year_int) > 10]
-
-  title <- "FRP by years since prior burn"
-  p <- ggplot(x, aes(as.factor(year_int), log10(MaxFRP))) + 
-       geom_boxplot() + 
-       #ylim(0, 1000) + 
-       labs(x = "Years since prior burn", y = "log FRP") +
-       ggtitle(title)
-  p + plot_opts
-
-  #ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
-
-```
 
 Slight upward trend in 
 
@@ -465,7 +464,7 @@ Slight upward trend in
 
 
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 # Calculate semivariograms
 x.copy <- x.yr
