@@ -31,7 +31,7 @@ path.plots <- "D:/projects/ak_fire/output/plots/frp"
 source(file.path(path.in, "R", "ak_functions.R"))
 
 # Load data saved from 'process_ak_frp_data.R'
-rdata <- "ak_frp_data.RData"
+rdata <- "ak_frp_data_pixel_area.RData"
 load(file = file.path(path.in, "data", rdata))
 
 
@@ -52,7 +52,7 @@ plot_opts <- theme(panel.grid.minor.x = element_blank(),
 # Only the highest burn count is retained to avoid overcounting contributions
 
 # ------- BOXPLOT by burn number
-title <- "FRP by burn number, all years"
+title <- "FRP by burn number, all years, combined land cover"
 plot.name <- "AK_FRP by burn number_all years.png"
 
 # Get means
@@ -60,19 +60,20 @@ means <- aggregate(MaxFRP ~ burn_num, x, mean)
 
 # Plot boxplot with mean values 
 p <- ggplot(x, aes(as.factor(burn_num), MaxFRP)) + 
-  geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
-  geom_point(data=means, aes(as.factor(burn_num), MaxFRP, shape = "mean"), size = 7) +
-  scale_shape_manual("", values = 18) +
-  geom_text(data = means, aes(label = round(MaxFRP, 2), y = MaxFRP + 16), hjust = -0.2) +
-  coord_cartesian(ylim = c(0,500), expand = TRUE) +
-  labs(x = "Burn number", y = "FRP") +
-  ggtitle(title)
+            geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
+            geom_point(data=x.frp.summary, aes(as.factor(burn_num), mean, shape = "Mean"), size = 7) +
+            scale_shape_manual("", values = 18) +
+            geom_text(data = means, aes(label = round(MaxFRP, 2), y = MaxFRP + 16), hjust = -0.2) +
+            coord_cartesian(ylim = c(0,500), expand = TRUE) +
+            labs(x = "Burn number", y = "FRP") +
+            ggtitle(title)
 p + plot_opts
 
 ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
 
 # ------- BOXPLOT by burn number, log plot
+
 title <- "Log FRP by burn number, all years"
 plot.name <- "AK_FRP by burn number_all years_log.png"
 
@@ -82,7 +83,8 @@ p <- ggplot(x, aes(as.factor(burn_num), log10(MaxFRP))) +
   geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
   geom_point(data=means, aes(as.factor(burn_num), log10(MaxFRP), shape = "mean"), size = 7) +
   scale_shape_manual("", values = 18) +
-  geom_text(data = means, aes(label = round(log10(MaxFRP), 2), y = log10(MaxFRP) + 0.1), hjust = -0.2) +
+  geom_text(data = means, aes(label = round(log10(MaxFRP), 2), y = log10(MaxFRP) + 0.1), 
+            hjust = -0.4, vjust = 0.1) +
   labs(x = "Burn number", y = "log FRP") +
   ggtitle(title)
 p + plot_opts
@@ -90,10 +92,10 @@ p + plot_opts
 ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 
 
-#--------- BOXPLOT by max vegetation class
-p <- ggplot(subset(x, (evt_group %in% x.frp.class.sub$evt_group) & (burn_num %in% c(1,2,3))), aes(burn_num, log10(MaxFRP))) + 
+#--------- BOXPLOT by max vegetation classes
+p <- ggplot(subset(x, (evt_group %in% x.maxevt.gp.top$evt_group)), aes(burn_num, log10(MaxFRP))) + 
       geom_boxplot() + 
-      facet_wrap( ~ class_name, ncol = 2) #+ 
+      facet_wrap( ~ evt_group, ncol = 2) #+ 
 #      coord_cartesian(ylim = c(0, 800), expand = TRUE)
 p + plot_opts
 
@@ -108,9 +110,9 @@ p + plot_opts
 
 # For individual years. This mostly groups data geographically as well.
 
-for (yr in c(2003, 2004, 2005, 2009)) {
+for (yr in seq(2002, 2016)) {
   
-  x.yr <- subset(x, year == yr)
+  x.yr <- subset(x, FireYear == yr)
   
 # ------- PLOT by burn number
   title <- paste0("FRP by burn number, ", yr)

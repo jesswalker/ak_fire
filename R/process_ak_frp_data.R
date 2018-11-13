@@ -5,12 +5,12 @@
 # Objective:  Process MxD14A1 FRP data in order to plot and analyze data.
 #
 # Input:     Files of MxD14A1 data originally produced in GEE
-#            for fire complexes in Alaska.  FRP files must be run through 
+#            for fire complexes in Alaska and then processed (run through 
 #            format_gee_file_for_import_into_arc.R, then
 #            intersected in Arc with the vector file of fire history 
 #            (intersect_frp_data_with_fire_perimeters.py) to produce
 #            points that are tagged with FRP data, EVT data (in the encompassing
-#            MODIS 1-km pixel), and fire history data. The value in each EVT
+#            MODIS 1-km pixel), and fire history data). The value in each EVT
 #            class column is the number of 30-m pixels in each 1-km MODIS pixel
 #            (maximum of 1111 30-m pixels)
 #
@@ -108,7 +108,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
                   "class81", "class82"),
 
   evt_group = c("Water","Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
-                   "WS", "WS", "BS", "WS", "BS", "BirchAspen", "Aspen", 
+                   "WhtSpruce", "WhtSpruce", "BlkSpruce", "WhtSpruce", "BlkSpruce", "BirchAspen", "Aspen", 
                    "BalsPopAsp", 
                    "Shrubland", "Shrubland", "Shrubland", "Grassland", "Grassland","Shrubland", 
                    "Grassland", 
@@ -116,14 +116,14 @@ source(file.path(path.in, "R", "ak_functions.R"))
                    "BirchAspen", "Shrubland", "Spruce", "Grassland", 
                    "Hemlock", "Hemlock", "Hemlock", 
                     "Grassland", "Shrubland", "Grassland",
-                   "WS", "WS", "WS", "Shrubland", 
+                   "WhtSpruce", "WhtSpruce", "WhtSpruce", "Shrubland", 
                    "Tundra", "Tundra", "Tundra", "Tundra", "Tundra",
                    "Shrubland", "Shrubland", "Shrubland", 
                    "Tundra", "Tundra", 
                    "Grassland", "Grassland", 
                    "Shrubland", "Shrubland", "Shrubland", "Peatland", "Marsh", "Tidal",
                    "Tidal", "Wetland", "Wetland", "Wetland", "Wetland", "Grassland", "Wetland",
-                   "BS", "Shrubland", "Shrubland", "Shrubland", "Floodplain", "Floodplain", "Floodplain",
+                   "BlkSpruce", "Shrubland", "Shrubland", "Shrubland", "Floodplain", "Floodplain", "Floodplain",
                    "Floodplain", "Peatland", "Peatland","Peatland", "Peatland", "Shrubland", "Swamp",
                    "Tundra", "Tundra","Tundra","Tundra","Tundra","Tundra","Barren", "Barren", "Barren",
                    "Barren", "Barren", "Agriculture", "Agriculture"))
@@ -192,13 +192,13 @@ source(file.path(path.in, "R", "ak_functions.R"))
   x$max_evt_prop <- x$max_evt_pix/max_landsat_pixels * 100
 
   # Remove rows in which max_class == NA; this means none of the classes had a majority
-  x <- x[!is.na(x$max_evt_class), ]
+  x <- x[!is.na(x$max_evt_cat), ]
 
   # Convert to factor
-  x$max_evt_class <- as.factor(x$max_evt_class)
+  x$max_evt_cat <- as.factor(x$max_evt_cat)
 
   # Merge with file of EVT classes to associate a name with each class
-  x <- merge(x, evt_classes, by.x = "max_evt_class", by.y = "evt_number")
+  x <- merge(x, evt_classes, by.x = "max_evt_cat", by.y = "evt_number")
   
   # Keep original set of data prior to excluding duplications
   x.all <- x
@@ -230,13 +230,13 @@ x$burn_num <- as.factor(x$burn_num)
 # (why is this flaky and doesn't work sometimes?)
 x.frp.summary <- x %>%
                  group_by(burn_num) %>%
-                 summarize(avg = mean(MaxFRP),
+                 summarize(mean = mean(MaxFRP),
                            med = median(MaxFRP),
                            n = length(burn_num))
 
 # > x.frp.summary
 # # A tibble: 4 x 4
-# `burn_num`   avg   med     n
+# `burn_num`   mean   med     n
 # <fct>                 <dbl> <dbl> <int>
 #   1 1                    197.  77.8 59532
 # 2 2                      176.  81.4  9807
@@ -245,7 +245,7 @@ x.frp.summary <- x %>%
 
 # # this works reliably...just less fun
  # x.frp2 <- ddply(x, .(burn_num), summarize,
- #                avg = mean(MaxFRP),
+ #                mean = mean(MaxFRP),
  #                med = median(MaxFRP))
  
 # Round decimals
@@ -256,19 +256,19 @@ x.maxevt <- summary(x$evt_group)
 
 # Get FRP by veg class. 
 # x.frp.class <- ddply(x, .(max_class, burn_num), summarize,
-#                avg = mean(MaxFRP),
+#                mean = mean(MaxFRP),
 #                med = median(MaxFRP),
 #                n = length(burn_num))
 
 x.maxevt.gp <- x %>% 
                   group_by(evt_group, burn_num) %>%
-                  summarize (avg = mean(MaxFRP), 
+                  summarize (mean = mean(MaxFRP), 
                             med = median(MaxFRP), 
                             n = length(burn_num))
 
 x.maxevt.gp <- data.frame(x.maxevt.gp)
 # > x.maxevt.gp
-#      evt_group burn_num       avg    med     n
+#      evt_group burn_num      mean    med     n
 # 1  Agriculture        1  61.61667  41.55    24
 # 2  Agriculture        2  68.20000  68.20     1
 # 3        Aspen        1  72.00000  22.20     7
