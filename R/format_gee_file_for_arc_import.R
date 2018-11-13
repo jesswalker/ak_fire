@@ -59,6 +59,10 @@ if ("lonID" %in% names(x)) {
   x$lonID <- NULL
 }
 
+# drop groups column
+  if ("groups" %in% names(x)) {
+    x$groups <- NULL
+  }
 # drop 1st row, which is blank (1 exists for each file)
 x <- x[-1, ]
 
