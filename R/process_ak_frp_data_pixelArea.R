@@ -1,6 +1,6 @@
 ########################################################################### #
 #
-# process_ak_frp_data.R 
+# process_ak_frp_data_pixelArea.R 
 #
 # Objective:  Process MxD14A1 FRP data in order to plot and analyze data.
 #
@@ -11,8 +11,7 @@
 #            (intersect_frp_data_with_fire_perimeters.py) to produce
 #            points that are tagged with FRP data, EVT data (in the encompassing
 #            MODIS 1-km pixel), and fire history data. The value in each EVT
-#            class column is the number of 30-m pixels in each 1-km MODIS pixel
-#            (maximum of 1111 30-m pixels)
+#            class column is the area in sq m within each 1-km MODIS pixel.
 #
 #   files:   mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016
 #
@@ -83,9 +82,10 @@ source(file.path(path.in, "R", "ak_functions.R"))
   "MaxFRP", "latitude", "longitude", 
   "newdate", "FireYear", "FIREID", "DiscDate")
 
-  x <- x.all[, colNames]  
+  x <- x.all[, colNames]
+  x.original <- x.all
 
-  # Set up EVT classes and consolidated groups
+   # Set up EVT classes and consolidated groups
   evt_classes <- data.frame(evt_number =  
                 c("class11","class12", "class21", "class2197","class22","class23", "class24",
                   "class2600","class2601","class2602","class2603", "class2604","class2605","class2606","class2607","class2608","class2609",
@@ -128,12 +128,16 @@ source(file.path(path.in, "R", "ak_functions.R"))
                    "Tundra", "Tundra","Tundra","Tundra","Tundra","Tundra","Barren", "Barren", "Barren",
                    "Barren", "Barren", "Agriculture", "Agriculture"))
 
-  # Index is unique to each point but cumbersome in its current form;
-  # replace with sequence of sequential numbers.
+  # Index is unique to each point (though each point can have multiple rows with the same index, since
+  # points reference different fires but cumbersome in its current form;
+  # replace with sequence of sequential numbers. Each duplicate index will have a duplicate number.
   levels(x$index) <- c(seq(1:length(levels(x$index))))
 
   # Rename index
   colnames(x)[which(colnames(x) == "index")] <- "ptid"
+  colnames(x)[which(colnames(x) == "MaxFRP")] <- "frp"
+  colnames(x)[which(colnames(x) == "FireYear")] <- "fire_year"
+  
 
   # Set FID as unique id for each row
   x$FID <- 1:nrow(x)
@@ -145,7 +149,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
   x <- Filter(function(y) !all(is.na(y)), x)
 
   # Remove rows in which MaxFRP == NA
-  x <- x[!is.na(x$MaxFRP), ]
+  x <- x[!is.na(x$frp), ]
 
   # Format date columns and remove old ones
   x$modis_date <- as.Date(x$newdate, format = "%m/%d/%Y")
@@ -155,21 +159,37 @@ source(file.path(path.in, "R", "ak_functions.R"))
   x$DiscDate <- NULL
   x$newdate <- NULL
 
-  # MODIS MaxFRP is scaled by 10
-  x$MaxFRP <- 0.1 * x$MaxFRP
+  # MODIS frp is scaled by 10
+  x$frp <- 0.1 * x$frp
 
   # Function to count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
   get_fire_order = function(df) {
     df <- df[order(df$fire_date), ]
-    df$burn_num <- ave(df$FireYear, df$ptid, FUN = rank) #Rank the fires associated with a single point
+    df$burn_num <- ave(df$fire_year, df$ptid, FUN = rank) #Rank the fires associated with each point ID
     df$reburn <- 0 
     df[which(as.numeric(df$burn_num) > 1), ]$reburn <- 1 #Reburn: no = 0, yes = 1
-    df$year_int <- ave(df$FireYear, factor(df$ptid), FUN=function(t) c(0, diff(t))) #Get years between fires
+    df$year_int <- ave(df$fire_year, factor(df$ptid), FUN=function(t) c(0, diff(t))) #Get years between fires
   return(df)
   }
 
   # Calculate fire order
   x <- get_fire_order(x)
+  
+  #####
+  # Here's where I should figure out how to branch off and then reconcile
+  #
+  # The attempt is to identify points for which there is an frp pixel in a given year but no recorded fire perimeter
+  # Because these points are not associated with a named burn, they do not register as a fire. 
+  
+  test <-  x[which(x$FireYear == year(x$modis_date)),]
+  setdiff(levels(x$ptid), test$ptid)
+  #> x[which(x$ptid == '571'),]
+  #FID ptid FID_firePe MaxFRP latitude longitude FireYear FIREID modis_date  fire_date burn_num reburn year_int max_evt_cat max_evt_area
+  #438     438  571       1337   25.3 62.32083 -158.8109     1957  27588 2002-08-13 1957-06-08      1.5      1        0   class2753     313859.6
+  #90264 90264  571       1337   76.0 62.32083 -158.8109     1957  27588 2016-07-16 1957-06-08      1.5      1        0   class2753     313859.6
+  
+  
+  ############
 
   # Remove all within-season burns: entries tagged as reburns but with year_int = 0.
   x.1season <- subset(x, reburn == 1 & year_int == 0)
@@ -230,8 +250,8 @@ x$burn_num <- as.factor(x$burn_num)
 # (why is this flaky and doesn't work sometimes?)
 x.frp.summary <- x %>%
                  group_by(burn_num) %>%
-                 summarize(mean = mean(MaxFRP),
-                           med = median(MaxFRP),
+                 summarize(mean = mean(frp),
+                           med = median(frp),
                            n = length(burn_num))
 
 # > x.frp.summary
@@ -245,25 +265,25 @@ x.frp.summary <- x %>%
 
 # # this works reliably...just less fun
  # x.frp2 <- ddply(x, .(burn_num), summarize,
- #                mean = mean(MaxFRP),
- #                med = median(MaxFRP))
+ #                mean = mean(frp),
+ #                med = median(frp))
  
 # Round decimals
-# means$MaxFRP <- round(means[,2], 1)
+# means$frp <- round(means[,2], 1)
 
 # Get # of EVT classes with majorities
 x.maxevt <- summary(x$evt_group)
 
 # Get FRP by veg class. 
 # x.frp.class <- ddply(x, .(max_class, burn_num), summarize,
-#                mean = mean(MaxFRP),
-#                med = median(MaxFRP),
+#                mean = mean(frp),
+#                med = median(frp),
 #                n = length(burn_num))
 
 x.maxevt.gp <- x %>% 
                   group_by(evt_group, burn_num) %>%
-                  summarize (mean = mean(MaxFRP), 
-                            med = median(MaxFRP), 
+                  summarize (mean = mean(frp), 
+                            med = median(frp), 
                             n = length(burn_num))
 
 x.maxevt.gp <- data.frame(x.maxevt.gp)
@@ -331,14 +351,14 @@ x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% 
 # ---------------------------------
 
 # Calculate 2-way ANOVA; evt group and burn num
-x.anova <- aov(formula = MaxFRP ~ evt_group * burn_num, data = x)
+x.anova <- aov(formula = frp ~ evt_group * burn_num, data = x)
 summary(x.anova)
 TukeyHSD(x.anova, which = "burn_num")
 TukeyHSD(x.anova, which = "evt_group")
 
 
 # Calculate anova: FRP vs year_int, evt, and burn_num
-x.anova <- aov(formula = MaxFRP ~ year_int * as.factor(evt_group) * burn_num, data = subset(x, reburn > 0))
+x.anova <- aov(formula = frp ~ year_int * as.factor(evt_group) * burn_num, data = subset(x, reburn > 0))
 summary(x.anova)
 
 
