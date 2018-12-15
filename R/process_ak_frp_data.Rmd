@@ -1,42 +1,40 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title:  "Process AK FRP data"
+author: "JJWalker"
+date: "2016-08-01"
+output:
+  html_notebook:
+    highlight: tango
+    mathjax: null
+    number_sections: no
+    theme: spacelab
 ---
 
-```{r, echo=FALSE}
 
-########################################################################### #
-#
-# process_ak_frp_data.Rmd 
-#
-# Objective:  Process MxD14A1 FRP data in order to plot and analyze data.
-#
-# Input:     Files of MxD14A1 data originally produced in GEE
-#            for fire complexes in Alaska and then processed via the following
-#            steps: 
-#             - formatted (format_gee_file_for_import_into_arc.R)
-#             - intersected in Arc with the vector file of fire history 
-#            (intersect_frp_data_with_fire_perimeters.py) to combine 
-#            FRP data, EVT data (in the encompassing
-#            MODIS 1-km pixel), and fire history data. The value in each EVT
-#            class column is the area (m^2) of a given EVT class.
-#
-#   files:   mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016
-#
-# Output:   ak_frp_area_data.RData.  Contains files processed through to 
-#           statistical results.
-#
-#   JWalker 6 April 2018, revised substantially in Dec 2018
-#  
-########################################################################### #
-```
+####process_ak_frp_data.Rmd 
+
+This script inputs annual MxD14A1 FRP files produced in GEE and outputs an Rdata file for further plotting and analysis. Prior to input, FRP files are processed as follows:   
+
+  * Formatted from GEE format to ArcMap-ready (_format_gee_file_for_import_into_arc.R_)
+  * Intersected with the BLM fire history vector file (_intersect_frp_data_with_fire_perimeters.py_) to combine 
+    * FRP data
+    * EVT data (in the coincident MODIS 1-km pixel)
+    * Fire history information
+    
+Input files:   mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016
+
+Output:   ak_frp_area_data.RData. 
 
 
 
-```{r}
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### Set up ####
+# ---------------------------------------------------------------- #
 
 # Remove existing data and libraries from R environment
-#rm(list=ls())
+#rm(list=ls()) # bad, bad!
 
 # Load libraries
 library(lubridate) # dates
@@ -57,27 +55,32 @@ source(file.path(path.in, "R", "ak_functions.R"))
 ```
 
 
+```{r, echo = F}
 
-```{r,echo=F}
-
+# ---------------------------------------------------------------- #
+#### Combine annual files ####
+# ---------------------------------------------------------------- #
 
 # if the data are already saved in an Rdata file, skip this part
-#if (!file.exists(file.path(path.r, rdata))){
+#if (file.exists(file.path(path.r, rdata))){
+#   load(file.path(path.r, rdata))
+# } else {
 
-  # Get the relevant filenames
-#  filenames.in <- list.files(file.path(path.in, "data/tables"), pattern = "*plus_fire_info_bufferIn600m.csv")
+# Get the relevant filenames
   filenames.in <- list.files(file.path(path.in, "data/intersected"), pattern = "*plus_fire_info_bufferIn600m.csv")
   
-  # Read all files to a single file. Suppress warnings b/c of spurious "incomplete last line" error
-  suppressWarnings(x.all <- do.call(rbind, lapply(file.path(path.in, "data/intersected", filenames.in), read.csv,row.names=NULL)))
-# this gets rid of the extra column
-#  colnames(x.all) <- c(colnames(x.all)[-1],NULL)
-
+# Read all files to a single file. Suppress warnings b/c of spurious "incomplete last line" error
+  suppressWarnings(x.all <- do.call(rbind, lapply(file.path(path.in, "data/intersected", filenames.in),   read.csv,row.names=NULL)))
 
 ```
 
-```{r, echo=F}
-  # Retain only specified columns
+```{r, echo = F}
+
+# ---------------------------------------------------------------- #
+#### Define columns ####
+# ---------------------------------------------------------------- #
+
+# Retain only specified columns
   colNames <- c("index",  #FID_firePe",
   "class11", "class12", "class21", "class2197", "class22", "class23", "class24",     
   "class2600", "class2601", "class2602", "class2603", "class2604", "class2605", "class2606", "class2607", "class2608", "class2609", 
@@ -101,13 +104,23 @@ source(file.path(path.in, "R", "ak_functions.R"))
   "class81", "class82",
   "MaxFRP", "latitude", "longitude",
   "newdate", "FireYear", "FIREID", "DiscDate")
+
+ x <- x.all[, colNames]
+ 
 ```
 
-```{r, echo=F}
+###EVT class consolidation
 
- x <- x.all[, colNames]  
+EVT classes are combined as follows:
 
-  # Set up EVT classes and consolidated groups
+<>
+```{r, echo = F}
+
+# ---------------------------------------------------------------- #
+#### Define EVT columns ####
+# ---------------------------------------------------------------- #
+
+# Define EVT classes and consolidated groups
   evt_classes <- data.frame(evt_number =  
                 c("class11", "class12", "class21", "class2197","class22","class23", "class24",
                   "class2600", "class2601","class2602","class2603", "class2604","class2605","class2606","class260","class2608","class2609",
@@ -129,7 +142,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
                   "class2791", "class2792", "class2793", "class2794","class31", 
                   "class81", "class82"),
 
-  evt_group = c("Water","Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
+  evt_group = c("Water", "Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
                    "WhtSpruce", "WhtSpruce", "BlkSpruce", "WhtSpruce", "BlkSpruce", "BirchAspen", "Aspen", 
                    "BalsPopAsp", 
                    "Shrubland", "Shrubland", "Shrubland", "Grassland", "Grassland","Shrubland", 
@@ -150,64 +163,74 @@ source(file.path(path.in, "R", "ak_functions.R"))
                    "Tundra", "Tundra","Tundra","Tundra","Tundra","Tundra","Barren", "Barren", "Barren",
                    "Barren", "Barren", "Agriculture", "Agriculture"))
 
-
-
 ```
 
 
-```{r}
+```{r, echo = FALSE}
 
-  # Index is unique to each point (though the same index can occur in multiple rows, since
-  # points reference different fires) but cumbersome in its current form;
-  # replace with sequence of sequential numbers. Each duplicate index will have a duplicate number.
-  
+# ---------------------------------------------------------------- #
+#### File clean up and formatting ####
+# ---------------------------------------------------------------- #
+
+# Index is unique to each point (though the same index can occur in multiple rows, since
+# points reference different fires) but cumbersome in its current form;
+# replace with sequence of sequential numbers. Each duplicate index will have a duplicate number.
   levels(x$index) <- c(seq(1:length(levels(x$index))))
   
-  # Rename index
+# Rename index
   colnames(x)[which(colnames(x) == "index")] <- "ptid"
   colnames(x)[which(colnames(x) == "MaxFRP")] <- "frp"
   colnames(x)[which(colnames(x) == "FireYear")] <- "fire_year"
   colnames(x)[which(colnames(x) == "FIREID")] <- "fireid"
+  colnames(x)[which(colnames(x) == "FID")] <- "fid"
 
-  # Set FID as unique id for each row
-  x$FID <- 1:nrow(x)
+# Set FID as unique id for each row
+  x$fid <- 1:nrow(x)
 
-  # Reorder s.t. FID is first
+# Reorder s.t. FID is first
   x <- x[, c(ncol(x), 1:(ncol(x)-1))]
 
-  # Remove NA-only columns
+# Remove NA-only columns
   x <- Filter(function(y) !all(is.na(y)), x)
+  
+# MODIS frp is scaled by 10
+  x$frp <- 0.1 * x$frp
 
-  # Remove rows in which frp == NA
+# Remove rows in which frp == NA
   x <- x[!is.na(x$frp), ]
 
-  # Format date columns and remove old ones
+# Format date columns and remove old ones
   x$modis_date <- as.Date(x$newdate, format = "%m/%d/%Y")  #"%Y-%m-%d")
   x$fire_date <- as.Date(x$DiscDate, format = "%m/%d/%Y")
   x$modis_year <- year(x$modis_date)
   
-  # Ensure point id is a factor
+# Ensure point id is a factor
   x$ptid <- factor(x$ptid)
 
-  # Housekeeping
+# Remove unneeded columns
   x$DiscDate <- NULL
   x$newdate <- NULL
-
-  # MODIS frp is scaled by 10
-  x$frp <- 0.1 * x$frp
   
+# Remove all rows in which the modis date preceeds the fire date
+   x <- x[which(x$modis_date > x$fire_date), ]
+
+# Keep a backup  
   x.backup <- x
 
 ```
   
 ```{r, echo  = FALSE}
 
-  # Function to count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
+# ---------------------------------------------------------------- #
+#### Function - Calculate burn number ####
+# ---------------------------------------------------------------- #
+
+# Count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
+
   get_fire_order = function(df) {
-  #  df <- df[order(df$fire_year, decreasing = FALSE),]
     df <- df %>% 
-      arrange(fire_year) %>% 
-      group_by(ptid) %>% 
+      arrange(fire_year) %>%  # put in ascending order
+      group_by(ptid) %>%      
       mutate(burn_num = seq_along(fire_year))
     df <- data.frame(df)
     df$reburn <- 0 
@@ -220,107 +243,52 @@ source(file.path(path.in, "R", "ak_functions.R"))
 
 ```
 
- 
- 
-```{r}
 
-  ###########################################################################
-  # Here's where I should figure out how to branch off and then reconcile
-  #
-  # The attempt is to identify points for which there is an frp pixel in a given year but no recorded fire perimeter
-  # Because these points are not associated with a named burn, they do not register as a fire. 
-  # Get rid of all individual classes. Keep as separate file s.t. proportions
-  # can be analyzed if desired
-  
-  
-  # Get ptids for which more than 1 MODIS date exist
-  #    t <- x.sub %>% group_by(ptid) %>% filter(length(unique(modis_date)) > 1)
-   #   t <- data.frame(t)
-  
-  # Get ptids for which MODIS year doesn't match any of the fire year
-    #  y <- x.sub %>% group_by(ptid) %>% 
-     #   filter(!year(modis_date) %in% fire_year)
-    #  y <-  data.frame(y)
-  
-  # nice, this works. BUT, still doesn't identify the fires that have >1 MODIS reading
-  # What do we do with those??
-  # get all rows for which the ptid has a modis year that doesn't match the fire year
-  #  x.ys <- subset(x.sub, ptid %in% y$ptid)
-  
-  # get the inverse of this subset: all well-behaved rows
-  #  x.normal <- setdiff(x.sub, x.ys)
-  
+```{r, warning=F}
 
-```
- 
+# ---------------------------------------------------------------- #
+#### Assemble the new fire df ####
+# ---------------------------------------------------------------- #
 
-```{r}
+# We need a row for each unique fire_year and modis_year
+# PLUS...FRP value for each MODIS year (pre-MODIS years get a holder value)
+# ptid, lat, long,, evt...all the stuff that doesn't change for each point.
 
- 
-  # Get unique fire years and modis years for each ptid
-#  tt <- x.sub %>% group_by(ptid) %>% filter(year(modis_date) )
-  
-  # get rows for which the fire year == modis year
-#  test <-  x.sub[which(x.sub$fire_year == year(x.sub$modis_date)), ]
-  
-  # get the inverse: ptids for which fire year != modis year
-#  missing.fires <- setdiff(levels(x$ptid), test$ptid)
-  
-```
+# we only have 1 frp per year, so we can take the corresponding frp for the modis years
 
+# For each ptid:
+# construct a new dataframe from the consistent info
+# replicate for the number of years
+# get the unique years for fire years and modis years
 
-
-
-```{r, echo = F, warning=F}
-
-# #####################################################
-#  Assemble the df of fires
-# #####################################################
-
-  # all we really need is  a row for each unique fire_year and modis_year
-  # PLUS...FRP values for the MODIS years
-  #     ...previous years get a holder value
-  # ptis, lat, long,, evt...all the stuff that doesn't change for each point.
-  
- #  Run this for all years
-  # Years pre-2002 do not get an frp
-  # we only have 1 frp per year, so we can take the corresponding frp for the modis years
-  
-  # for each ptid..
-  # construct a new dataframe from the consistent info...  # plus evt classes.  All the standard stuff.
-  # replicate for the number of years 
-  # get the unique years for fire years and modis years
-
-
-
-  # set up a df to hold all entries
+# Set up a df to hold all entries
   df.all <- setNames(data.frame(matrix(ncol = 6, nrow = 0)),  c('ptid', 'latitude', 'longitude', 'fire_year', 'frp', 'FIREID'))
 
-
-  #remove those pesky classes for this exercise
+# Remove classes for this exercise
   x.sub <- x[, -which(names(x) %in% names(x[grepl("class", names(x))]))]
   
-  # df with only classes and ptid
+# Create with only 1 instance of the classes associated with each ptid
   x.classes <- x[, which(names(x) %in% c('ptid', names(x[grepl("class", names(x))])))]
   x.classes <- x.classes[!duplicated(x.classes$ptid), ]
   
-  # remove all rows in which the modis date preceeds the fire date
-  x.sub <- x.sub[which(x.sub$modis_date > x.sub$fire_date), ]
-
-#x.1 <- x.sub[501:1500, ]
-#x.1 <- x[x$ptid == 1305,]
-#x.1 <- x.sub[order(x.sub$ptid), ]
-#x.1 <- subset(x.1, ptid %in% c(927:950))
 
 x.1 <- x.sub
+
+```
+
+```{r}
+
+# ---------------------------------------------------------------- #
+#### Function to create new fire df ####
+# ---------------------------------------------------------------- #
+
   
 recast_fires = function(f) {
 
-  # trim down the factor levels
+  # Trim factor levels
   f$ptid <- factor(f$ptid)
-#  f <- ungroup(f)
 
-  # list of all unique fire and MODIS years. 
+  # List of all unique fire and MODIS years. 
   years <- unique(c(f$fire_year, f$modis_year))
   
   #set up a new df with the info that doesn't change
@@ -330,15 +298,15 @@ recast_fires = function(f) {
     # fire years
   f.new <- cbind(f.new, fire_year = years)
 
-  # get the frp corresponding to the MODIS year
-  # years preceeding modis era get NA
-  # unique is to catch duplicates of modis year/frp, since the same frp is registered for multiple fire years that
+  # Get the frp corresponding to the MODIS year
+  # Years preceeding modis era get NA
+  # 'distinct' is to catch duplicates of modis year/frp, since the same frp is registered for multiple fire years that
   # preceed the modis era
     #test <- merge(f.new, unique(f[ , c('modis_year', 'frp')]), by.x = "fire_year", by.y = "modis_year", all.x = T)  
     
   merge1 <- left_join(f.new, distinct(dplyr::select(f, modis_year, frp)), by = c("fire_year" = "modis_year"))
      
-  # join to get fire_id, etc.
+  # Join to get fire_id, etc.
   merge2 <- merge1 %>% left_join(distinct(dplyr::select(f, fireid, fire_year), fire_year, .keep_all = T), by = c("fire_year"))
   
   # consolidate wth holder df
@@ -346,7 +314,13 @@ recast_fires = function(f) {
    
    return(df.all) 
   }
-  
+```  
+
+```{r, echo=FALSE}
+
+# ---------------------------------------------------------------- #
+#### Merge fire df with EVT classes ####
+# ---------------------------------------------------------------- #
 
 #  tidyverse application of fcn to subset
 lst.all <- x.1 %>% group_by(ptid) %>%
@@ -365,19 +339,21 @@ df.all <- df.all[order(df.all$index), ]
 
 ```
 
-```{r}
-# #####################################################
-#  Get fire order for all points
-# #####################################################
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### Get fire order for each point ####
+# ---------------------------------------------------------------- #
 
 temp <- get_fire_order(df.all)
 temp$ptid <- as.factor(temp$ptid)
 ```
 
-```{r, echo=FALSE}
-# #####################################################
-#  Merge with classes
-# #####################################################
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### Merge fire df with EVT classes ####
+# ---------------------------------------------------------------- #
 # now rejoin the classes to the sorted burn info file
 
 x.classes$ptid <- as.numeric(x.classes$ptid)
@@ -389,25 +365,23 @@ x <- x.merged
 ```
 
 
+```{r, echo = FALSE}
 
+# ---------------------------------------------------------------- #
+####  ####
+# ---------------------------------------------------------------- #
 
-
-
-
-
-
-
-
-
-```{r}
 # Plot the points
 df.all %>% 
 ggplot(aes(longitude, latitude)) + geom_point(color = 'red', size = 1)
 ```
 
 
-```{r, echo=F}
-  ################
+````{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+####  ####
+# ---------------------------------------------------------------- #
   
   # Remove all within-season burns: entries tagged as reburns but with year_int = 0.
   #x.1season <- subset(x, reburn == 1 & year_int == 0)
@@ -456,11 +430,13 @@ ggplot(aes(longitude, latitude)) + geom_point(color = 'red', size = 1)
 
   # Clean up
 #  rm(x.1season)
+```
   
+```{r, echo = FALSE}
 
-# ----------------------------------
-# Calculate STATS ----
-# ----------------------------------
+# ---------------------------------------------------------------- #
+#### Calculate stats ####
+# ---------------------------------------------------------------- #
 
 # Convert to factor
 x$burn_num <- as.factor(x$burn_num)
@@ -563,6 +539,11 @@ x.maxevt.gp.top <- x.maxevt.gp[x.maxevt.gp$n > 10, ]
 
 # Keep only those classes that have at least 2 burn levels
 x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% which(table(x.maxevt.gp.top$evt_group) < 2)), ]
+
+```
+
+
+```{r, echo = FALSE}
 
 # --------------------------------- 
 # Stats
