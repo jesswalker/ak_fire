@@ -13,7 +13,7 @@ output:
 
 ####process_ak_frp_data.Rmd 
 
-This script inputs annual MxD14A1 FRP files produced in GEE and outputs an Rdata file for further plotting and analysis. Prior to input, FRP files are processed as follows:   
+This script inputs annual MxD14A1 FRP datasets produced in GEE and outputs an Rdata file for further plotting and analysis. Prior to input, FRP files are processed as follows:   
 
   * Formatted from GEE format to ArcMap-ready (_format_gee_file_for_import_into_arc.R_)
   * Intersected with the BLM fire history vector file (_intersect_frp_data_with_fire_perimeters.py_) to combine 
@@ -21,10 +21,9 @@ This script inputs annual MxD14A1 FRP files produced in GEE and outputs an Rdata
     * EVT data (in the coincident MODIS 1-km pixel)
     * Fire history information
     
-Input files:   mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016
+Input files: mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016
 
-Output:   ak_frp_area_data.RData. 
-
+Output file: ak_frp_area_data.RData. 
 
 
 ```{r, echo = FALSE}
@@ -37,9 +36,11 @@ Output:   ak_frp_area_data.RData.
 #rm(list=ls()) # bad, bad!
 
 # Load libraries
-library(lubridate) # dates
+library(lubridate) 
 library(tidyverse)
 library(dtplyr)
+library(kableExtra) #kable tables
+library(knitr) #kable
 
 # Set paths
 #path.in <- "D:/projects/ak_fire"
@@ -81,7 +82,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
 # ---------------------------------------------------------------- #
 
 # Retain only specified columns
-  colNames <- c("index",  #FID_firePe",
+  colNames <- c("index",
   "class11", "class12", "class21", "class2197", "class22", "class23", "class24",     
   "class2600", "class2601", "class2602", "class2603", "class2604", "class2605", "class2606", "class2607", "class2608", "class2609", 
   "class2610", "class2611", "class2612",
@@ -172,12 +173,11 @@ EVT classes are combined as follows:
 #### File clean up and formatting ####
 # ---------------------------------------------------------------- #
 
-# Index is unique to each point (though the same index can occur in multiple rows, since
-# points reference different fires) but cumbersome in its current form;
-# replace with sequence of sequential numbers. Each duplicate index will have a duplicate number.
+# Point ID ('index') is unique to each point, though the same ID can occur in multiple rows, since
+# a single point may have burned in multiple fires.Replace with sequence of sequential numbers.
   levels(x$index) <- c(seq(1:length(levels(x$index))))
   
-# Rename index
+# Rename columns
   colnames(x)[which(colnames(x) == "index")] <- "ptid"
   colnames(x)[which(colnames(x) == "MaxFRP")] <- "frp"
   colnames(x)[which(colnames(x) == "FireYear")] <- "fire_year"
@@ -218,33 +218,18 @@ EVT classes are combined as follows:
   x.backup <- x
 
 ```
-  
-```{r, echo  = FALSE}
+###Assemble the new dataframe of fires
 
-# ---------------------------------------------------------------- #
-#### Function - Calculate burn number ####
-# ---------------------------------------------------------------- #
+For each point, there has to be a row for each year a fire took place. The following rules apply:
 
-# Count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
+  * Fires prior to the MODIS era are documented only through the BLM history database (i.e., FRP = NA)  
+  * Fires in the MODIS era are documented through the database and/or through the presence of a FRP pixel  
+    * FRP pixels without a corresponding entry in the fire history database are logged as a fire; BLM fire ID = NA. 
+    * Fires in the MODIS era with a database entry but without a registered FRP value are removed
 
-  get_fire_order = function(df) {
-    df <- df %>% 
-      arrange(fire_year) %>%  # put in ascending order
-      group_by(ptid) %>%      
-      mutate(burn_num = seq_along(fire_year))
-    df <- data.frame(df)
-    df$reburn <- 0 
-    df[which(as.numeric(df$burn_num) > 1), ]$reburn <- 1 #Reburn: no = 0, yes = 1
-    df$year_int <- ave(df$fire_year, factor(df$ptid), FUN=function(t) c(0, diff(t))) #Get years between fires
-  return(df)
-  }
-  
-  
+The database starts in this format (classes are removed for this exercise):
 
-```
-
-
-```{r, warning=F}
+```{r, echo=FALSE, warning=F}
 
 # ---------------------------------------------------------------- #
 #### Assemble the new fire df ####
@@ -252,7 +237,7 @@ EVT classes are combined as follows:
 
 # We need a row for each unique fire_year and modis_year
 # PLUS...FRP value for each MODIS year (pre-MODIS years get a holder value)
-# ptid, lat, long,, evt...all the stuff that doesn't change for each point.
+# ptid, lat, long,, evt: all the stuff that doesn't change for each point.
 
 # we only have 1 frp per year, so we can take the corresponding frp for the modis years
 
@@ -265,25 +250,27 @@ EVT classes are combined as follows:
   df.all <- setNames(data.frame(matrix(ncol = 6, nrow = 0)),  c('ptid', 'latitude', 'longitude', 'fire_year', 'frp', 'FIREID'))
 
 # Remove classes for this exercise
-  x.sub <- x[, -which(names(x) %in% names(x[grepl("class", names(x))]))]
+  x.noclasses <- x[, -which(names(x) %in% names(x[grepl("class", names(x))]))]
   
 # Create with only 1 instance of the classes associated with each ptid
   x.classes <- x[, which(names(x) %in% c('ptid', names(x[grepl("class", names(x))])))]
   x.classes <- x.classes[!duplicated(x.classes$ptid), ]
-  
-
-x.1 <- x.sub
 
 ```
 
-```{r}
+Example of a point with multiple associated fires
 
+`r x.noclasses %>%
+  filter(ptid == 5767) %>% 
+  kable() %>%
+  kable_styling()`
+
+```{r, echo=FALSE}
 # ---------------------------------------------------------------- #
 #### Function to create new fire df ####
 # ---------------------------------------------------------------- #
 
-  
-recast_fires = function(f) {
+create_new_fire_df = function(f) {
 
   # Trim factor levels
   f$ptid <- factor(f$ptid)
@@ -294,22 +281,19 @@ recast_fires = function(f) {
   #set up a new df with the info that doesn't change
   f.new <- f[1, c("ptid", "latitude", "longitude")] %>% slice(rep(1:n(), each = length(years)))
 
-  # now add the unique info
-    # fire years
+  # Add fire years
   f.new <- cbind(f.new, fire_year = years)
 
   # Get the frp corresponding to the MODIS year
   # Years preceeding modis era get NA
   # 'distinct' is to catch duplicates of modis year/frp, since the same frp is registered for multiple fire years that
   # preceed the modis era
-    #test <- merge(f.new, unique(f[ , c('modis_year', 'frp')]), by.x = "fire_year", by.y = "modis_year", all.x = T)  
-    
   merge1 <- left_join(f.new, distinct(dplyr::select(f, modis_year, frp)), by = c("fire_year" = "modis_year"))
      
   # Join to get fire_id, etc.
   merge2 <- merge1 %>% left_join(distinct(dplyr::select(f, fireid, fire_year), fire_year, .keep_all = T), by = c("fire_year"))
   
-  # consolidate wth holder df
+  # Consolidate wth holder dataframe
    df.all <- rbind(df.all, merge2)
    
    return(df.all) 
@@ -319,49 +303,72 @@ recast_fires = function(f) {
 ```{r, echo=FALSE}
 
 # ---------------------------------------------------------------- #
-#### Merge fire df with EVT classes ####
+#### Merge new fire df with EVT classes ####
 # ---------------------------------------------------------------- #
 
-#  tidyverse application of fcn to subset
-lst.all <- x.1 %>% group_by(ptid) %>%
-  do(recast_fires(.))
+# tidyverse application of fcn to subset
+lst.all <- x.noclasses %>% 
+  group_by(ptid) %>%
+  do(create_new_fire_df(.))
 
+# Convert from df of lists to just a df
+x.new <- data.frame(lst.all)
+x.new <- x.new[order(x.new$ptid, x.new$fire_year), ]
 
-#convert from df of lists to just a df
-#df.all <- do.call(rbind.data.frame, lst.all)
-df.all <- data.frame(lst.all)
-df.all <- df.all[order(df.all$ptid, df.all$fire_year), ]
+# Convert row numbers to numeric index in order to sort
+x.new$index <- as.numeric(row.names(x.new))
+x.new <- x.new[order(x.new$index), ]
 
-# ordering by ptid is problematic b/c of factors
-df.all$index <- as.numeric(row.names(df.all))
-df.all <- df.all[order(df.all$index), ]
-#df.keeper <- df.df
+```
+
+  
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### Function - Calculate burn number ####
+# ---------------------------------------------------------------- #
+
+# Count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
+  get_fire_order = function(df) {
+    df <- df %>% 
+      group_by(ptid) %>% 
+      arrange(fire_year) %>%  # put in ascending order
+      mutate(burn_num = seq_along(fire_year)) # assign a sequence number
+    df <- data.frame(df)
+    df$reburn <- 0 
+    df[which(as.numeric(df$burn_num) > 1), ]$reburn <- 1 # reburn: no = 0, yes = 1
+    df$year_int <- ave(df$fire_year, factor(df$ptid), FUN=function(t) c(0, diff(t))) # get years between fires
+  return(df)
+  }
 
 ```
 
 ```{r, echo = FALSE}
 
 # ---------------------------------------------------------------- #
-#### Get fire order for each point ####
+#### Get burn number for each point ####
 # ---------------------------------------------------------------- #
 
-temp <- get_fire_order(df.all)
-temp$ptid <- as.factor(temp$ptid)
+x.new <- get_fire_order(x.new)
+x.new$ptid <- as.factor(x.new$ptid)
 ```
 
+After removing duplicates associated with the same FRP and assigning burn numbers and intervals, the same point id has this format:
+
+`r temp %>%
+  filter(ptid == 5767) %>% 
+  kable() %>%
+  kable_styling()`
+  
 ```{r, echo = FALSE}
 
 # ---------------------------------------------------------------- #
 #### Merge fire df with EVT classes ####
 # ---------------------------------------------------------------- #
-# now rejoin the classes to the sorted burn info file
 
 x.classes$ptid <- as.numeric(x.classes$ptid)
-x.merged <- merge(temp, x.classes, by = c("ptid"), all.x = T)
+x.all <- merge(x.new, x.classes, by = c("ptid"), all.x = T)
 
-x <- x.merged
-
-#x.join <- inner_join(temp, x.classes, by = c("ptid"))
 ```
 
 
@@ -372,64 +379,47 @@ x <- x.merged
 # ---------------------------------------------------------------- #
 
 # Plot the points
-df.all %>% 
+x.all %>% 
 ggplot(aes(longitude, latitude)) + geom_point(color = 'red', size = 1)
 ```
 
+Add the EVT classes back to the dataframe, and calculate:
 
-````{r, echo = FALSE}
+1. EVT class with the greatest proportion in each 1-km MODIS pixel
+2. Number of 30-m pixels of that class
+
+Pixels in which none of the classes had a majority are removed.
+```{r, echo = FALSE, warning = F}
 
 # ---------------------------------------------------------------- #
-####  ####
+#### Process EVT classes ####
 # ---------------------------------------------------------------- #
-  
-  # Remove all within-season burns: entries tagged as reburns but with year_int = 0.
-  #x.1season <- subset(x, reburn == 1 & year_int == 0)
-  #x <- x[!(x$FID %in% x.1season$FID), ]
-  
-  # Redo the rank calculate to account for changes
-  #x <- get_fire_order(x)
-  
-  # Only keep burns for which the MODIS date is after the burn date;
-  # no sense in getting modis data for burns that haven't happened yet.
-  #x <- x[which(x$modis_date > x$fire_date), ]
-  # This was moved earlier
   
   # Record the EVT class that had the greatest area in each 1-km MODIS pixel
-  x$max_evt_cat <- apply(x, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
+  x.all$max_evt_cat <- apply(x.all, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
   
-  # ...record the number of pixels that class represented
-  x$max_evt_area <- apply(x[grepl("class", names(x))], 1, max, na.rm = TRUE)
+  # ...record tharea that class represented
+  x.all$max_evt_area <- apply(x.all[grepl("class", names(x.all))], 1, max, na.rm = TRUE)
   
   # ...calculate the proportion of pixels that class represented
-  #x$max_evt_prop <- x$max_evt_pix/max_landsat_pixels * 100
+  #x.all$max_evt_prop <- x.all$max_evt_pix/max_landsat_pixels * 100
 
   # Remove rows in which max_class == NA; this means none of the classes had a majority
-  x <- x[!is.na(x$max_evt_cat), ]
+  x.all <- x.all[!is.na(x.all$max_evt_cat), ]
 
   # Convert to factor
-  x$max_evt_cat <- as.factor(x$max_evt_cat)
+  x.all$max_evt_cat <- as.factor(x.all$max_evt_cat)
 
   # Merge with file of EVT classes to associate a name with each class
-  x <- merge(x, evt_classes, by.x = "max_evt_cat", by.y = "evt_number")
+  x.all <- merge(x.all, evt_classes, by.x = "max_evt_cat", by.y = "evt_number")
   
-  # Keep original set of data prior to excluding duplications
-  x.original <- x
+  # Keep original set of data prior to excluding classes
+  x.original <- x.all
   
   # Get rid of all individual classes. Keep as separate file s.t. proportions
   # can be analyzed if desired
-  x <- x[, -which(names(x) %in% names(x[grepl("class", names(x))]))]
+  x.all <- x.all[, -which(names(x.all) %in% names(x.all[grepl("class", names(x.all))]))]
 
-  # Retain only the highest number of burns for a given point,
-  # otherwise a given FRP value will be associated with multiple burn states.
-  # First ensure file is ordered by ptid, then by burn_num (highest to lowest)
- # x <- x[order(x$ptid, -x$burn_num), ]
-  
-  # Remove duplicate points; i.e., all but the first-occurring point, which has the highest burn#
- # x <- x[!duplicated(x$ptid), ]
-
-  # Clean up
-#  rm(x.1season)
 ```
   
 ```{r, echo = FALSE}
@@ -439,10 +429,10 @@ ggplot(aes(longitude, latitude)) + geom_point(color = 'red', size = 1)
 # ---------------------------------------------------------------- #
 
 # Convert to factor
-x$burn_num <- as.factor(x$burn_num)
+x.all$burn_num <- as.factor(x.all$burn_num)
 
 # FRP by burn count (data)
-x.frp.summary <- x %>%
+x.frp.summary <- x.all %>%
                  group_by(burn_num) %>%
                  summarize(mean = mean(frp, na.rm = T),
                            med = median(frp, na.rm = T),
@@ -474,7 +464,7 @@ x.maxevt <- summary(x$evt_group)
 #                med = median(MaxFRP),
 #                n = length(burn_num))
 
-x.maxevt.gp <- x %>% 
+x.maxevt.gp <- x.all %>% 
                   group_by(evt_group, burn_num) %>%
                   summarize (mean = mean(frp, na.rm = T), 
                             med = median(frp, na.rm = T), 
@@ -550,14 +540,14 @@ x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% 
 # ---------------------------------
 
 # Calculate 2-way ANOVA; evt group and burn num
-x.anova <- aov(formula = MaxFRP ~ evt_group * burn_num, data = x)
+x.anova <- aov(formula = frp ~ evt_group * burn_num, data = x.all)
 summary(x.anova)
 TukeyHSD(x.anova, which = "burn_num")
 TukeyHSD(x.anova, which = "evt_group")
 
 
 # Calculate anova: FRP vs year_int, evt, and burn_num
-x.anova <- aov(formula = MaxFRP ~ year_int * as.factor(evt_group) * burn_num, data = subset(x, reburn > 0))
+x.anova <- aov(formula = frp ~ year_int * as.factor(evt_group) * burn_num, data = subset(x.all, reburn > 0))
 summary(x.anova)
 
 
