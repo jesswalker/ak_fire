@@ -33,24 +33,26 @@ output:
 # ---- Set environment ----
 
 # Remove existing data and values
-rm(list=ls())
+#rm(list=ls())
 
 # Load libraries
 library(ggplot2)
 library(lubridate)
 library(RCurl)  # to access ak_function.R file in github
 library(repmis) # to access RData file in github
+```
 
-# Load AK_reburn_data.RData
+```{r, echo = FALSE}
+# Load AK_reburn_data.RData from the github respo
 source_data("https://github.com/jesswalker/ak_fire/raw/master/data/AK_reburn_data.RData")
 
-# Load ak_functions.R
+# Load ak_functions.R from the github repo
 script <- getURL("https://raw.githubusercontent.com/jesswalker/ak_fire/master/R/ak_functions.R", ssl.verifypeer = FALSE)
 eval(parse(text = script))
 
 # *********** Set folder paths to local output folder for plots
 #path.in <- "D:/projects/ak_fire" # this now points to github files
-path.plots <- "D:/projects/ak_fire/output/plots"
+path.plots <- "D:/projects/ak_fire/output/plots/final_report"
 
 ```
 
@@ -65,8 +67,8 @@ yr_end <- year(max(x$date))
 # Set consistent plot parameters
 dodge = position_dodge(0.16)
 theme_set(theme_bw())
-plot_opts <- theme(panel.grid.minor.x = element_blank(),
-                   panel.grid.major.x = element_blank(), # hide gridlines
+plot_opts <- theme(panel.grid.minor = element_blank(),
+                   panel.grid.major = element_blank(), # hide gridlines
                    legend.key = element_blank(),  # remove boxes around legend items
                    plot.title = element_text(hjust = 0.5)) # center title
 
@@ -198,6 +200,38 @@ p + plot_opts
 
 #ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 ```
+
+<br>
+Above plot modified for final report
+AK_Number of fires per year_ALL_report.png
+```{r, echo=FALSE, warning=FALSE}
+
+# --------------------------------------------------------------------------------------- #
+# NUMBER of fires per year // By level 1 ecoregions ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- x.nfires.eco1
+title <- paste0("Number of fires per year, ", yr_start, " - ", yr_end, "\n By level 1 ecoregions")
+plot.name <- "AK_Number of fires per year_ALL_final_report.png"
+
+p <- ggplot(data.sub, aes(x = year, y = n_fires)) + 
+        geom_bar(stat = "identity", aes(fill = factor(ecoreg1, levels = c("boreal", "maritime", "tundra")))) +
+        geom_line(data = x.nfires.moveavg, aes(year, n_10yrMove, color = 'red'), size = 0.9) + 
+        labs(x = "Year", y = "Number of fires") +
+        scale_fill_manual("Ecoregion", labels = c("Boreal", "Maritime", "Tundra"), values = eco1PaletteGray2) +
+        scale_color_manual(values = c('red'), labels = c("10-yr Moving Average"), name = element_blank()) +
+        theme(legend.position = c(0.18, 0.75), 
+          axis.text = element_text(size = 10),
+          axis.title = element_text(size = 12)) +
+          scale_x_continuous(breaks = seq(yr_start, yr_end, 5)) 
+
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 6, height = 4.2, units = c("in"), dpi = 600)
+```
+
+
+<br>
 AK_Acres burned per year_combined_ALL.png
 ```{r, echo=FALSE, warning=FALSE}
 # --------------------------------------------------------------------------------------- #
@@ -221,6 +255,41 @@ p + plot_opts
 
 #ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 ```
+
+<br>
+Above plot modified for final report
+AK_Acres burned per year_combined_ALL_final_report.png
+```{r, echo=FALSE, warning=FALSE}
+# --------------------------------------------------------------------------------------- #
+# ACRES burned per year // By level 1 ecoregions FINAL REPORT FORMAT ####
+# --------------------------------------------------------------------------------------- #
+
+data.sub <- subset(x.ac.sum.long.eco1, year >= yr_start)
+title <- paste0("Acres burned per year, ", yr_start, " - ", yr_end, "\n By level 1 ecoregions")
+plot.name <- "AK_Acres burned per year_combined_ALL_final_report.png"
+
+p <- ggplot(data.sub, aes(x = year, y = eco1_ac/1000)) + 
+        geom_bar(stat = "identity", aes(fill = factor(eco1, levels = c("bor_ac", "mar_ac", "tun_ac")))) +
+        geom_line(data = x.acres.moveavg, aes(year, ac_10yrMove/1000, color = "red"), size = 0.9) +
+        labs(x = "Year", y = "Acres Burned (x1000)") +
+        
+        scale_color_manual(values = c('red'), labels = c("10-yr Moving Average"), name = NULL) +
+  scale_fill_manual("Ecoregion", labels = c("Boreal", "Maritime", "Tundra"), values = eco1PaletteGray2) +
+        theme(legend.position = c(0.36, 0.87),
+              legend.direction = 'horizontal', 
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size=10),
+        legend.title = element_text(size=11)) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 10)) +
+  guides(color = guide_legend(order = 0),  # sets the order of the legends
+         fill = guide_legend(order = 1))
+      #  ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 6, height = 4.2, units = c("in"), dpi = 600)
+```
+
 AK_Area burned per year_initial and reburns_cumulative_ALL.png
 ```{r, echo=FALSE, warning=FALSE}
 
@@ -250,6 +319,47 @@ p + plot_opts
 
 #ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
 ```
+
+<br>
+Plot for final report
+AK_Acres reburned per year_combined_ALL_final_report.png
+```{r, echo=FALSE, warning=FALSE}
+# --------------------------------------------------------------------------------------- #
+# ACRES reburned per year // By level 1 ecoregions  ####
+# --------------------------------------------------------------------------------------- #
+
+x.burntype.prep.1 <- subset(x.burntype.prep, reburn == 1)
+x.burntype.sum.split.1 <- subset(x.burntype.sum.split, reburn == 1)
+
+# data need to be rearranged
+data.sub <- subset(x.burntype.prep.1, year >= yr_start)
+data.sub <- tidyr::gather(data.sub, 'bor_ac', 'mar_ac', 'tun_ac', key = 'eco1', value = 'eco1_ac')
+
+plot.name <- "AK_Acres reburned per year_combined_ALL_final_report.png"
+
+p <- ggplot(data.sub, aes(x = year, y = eco1_ac/1000)) + 
+        geom_bar(stat = "identity", aes(fill = factor(eco1, levels = c("bor_ac", "mar_ac", "tun_ac")))) +
+        geom_line(data = x.burntype.sum.split.1, aes(year, all_10yrMove/1000, color = "red"), size = 0.9) +
+        labs(x = "Year", y = "Acres Reburned (x1000)") 
+        scale_color_manual(values = c('red'), labels = c("10-yr Moving Average"), name = NULL) +
+        scale_fill_manual("Ecoregion", labels = c("Boreal", "Maritime", "Tundra"), values = eco1PaletteGray2) +
+        theme(legend.position = c(0.36, 0.87),
+              legend.direction = 'horizontal', 
+              axis.text = element_text(size = 10),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size=10),
+              legend.title = element_text(size=11)) +
+        scale_x_continuous(breaks = seq(yr_start, yr_end, 10)) +
+        guides(color = guide_legend(order = 0),  # sets the order of the legends
+              fill = guide_legend(order = 1))
+      #  ggtitle(title)
+p + plot_opts
+
+ggsave(filename = plot.name, path = path.plots, width = 6, height = 4.2, units = c("in"), dpi = 600)
+```
+
+
+
 AK_Start date per year_combined_linear_ALL.png
 ```{r, echo=FALSE, warning=FALSE}
 
@@ -1036,22 +1146,29 @@ p + plot_opts
 AK_Acres_reburns only_by fire interval and decade.png
 ```{r, echo=FALSE, warning=FALSE}
 # --------------------------------------------------------------------------------------- #
-# ACRES of reburns by fire return interval // Decade ####
+# ACRES of reburns by fire return interval // Decade FINAL REPORT FORMAT ####
 # --------------------------------------------------------------------------------------- #
 
 plot.title <- paste0("Reburn acreages by fire return intervals, ", yr_start, " - ", yr_end)
-plot.name <- "AK_Acres_reburns only_by fire interval and decade.png"
+plot.name <- "AK_Acres_reburns only_by fire interval and decade_final_report.png"
 
 p <- ggplot(x.grouped.int.decade, aes(decade, summ_ac/1000, group = int_gp, fill= int_gp)) + 
      geom_bar(stat = 'identity') + 
      scale_fill_manual("Fire interval\n(years)", labels = c("0-10", "11-30", "31-50", "50+"),
                     values = eco2Palette2) +
-     ggtitle(plot.title) +
-     labs(x = "Decade", y = "Acres x1000")
+      scale_x_discrete(labels = c("1950s", "1960s", "1970s", "1980s", "1990s", "2000s", "2010s\n(2010-2016)")) +
+          theme(legend.position = c(0.11, 0.78),
+              legend.direction = 'vertical', 
+              axis.text = element_text(size = 10),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size=10)) +
+
+ #    ggtitle(plot.title) +
+     labs(x = "Decade", y = "Acres Burned (x1000)")
 
 p + plot_opts
 
-#ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+ggsave(filename = plot.name, path = path.plots, width = 6, height = 4.2, units = c("in"), dpi = 600)
 ```
 
 AK_Acres_reburns only_proportions_by fire interval and decade.png
