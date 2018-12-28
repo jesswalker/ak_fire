@@ -1,0 +1,335 @@
+---
+title:  "Plot AK FRP data"
+author: "JJWalker"
+date: "2016-08-01"
+output:
+  html_notebook:
+    highlight: tango
+    mathjax: null
+    number_sections: no
+    theme: spacelab
+---
+```{r, echo = FALSE}
+########################################################################### #
+#
+# plot_ak_frp_data.Rmd
+#
+# Objective:  Plot processed MxD14A1 FRP data.
+#
+# Input:     .RData file produced by process_ak_frp_data.R
+#
+# Output:     FRP plots
+#   
+#   JWalker 17 April 2018
+#  
+########################################################################### #
+
+
+# ---- Set environment ----
+
+# Remove existing data and values
+rm(list=ls())
+
+# Load libraries
+library(ggplot2)
+library(lubridate)
+library(kableExtra)
+library(knitr)
+
+# Set folder paths
+path.in <- "/Users/jessicawalker/Documents/projects/ak_frp"
+path.plots <- file.path(path.in, "/output/plots")  #"D:/projects/ak_fire/output/plots/frp"
+
+# Load functions
+source(file.path(path.in, "R", "ak_functions.R"))
+```
+####Data import
+
+```{r, echo = F}
+# Load data saved from 'process_ak_frp_data.R'
+rdata <- "ak_frp_data_pixel_area.RData"
+load(file = file.path(path.in, "data", rdata))
+
+```
+
+<br>
+Data table is saved in this format:
+`r df.fires.evt %>%
+  arrange(fire_year) %>% 
+  filter(ptid == 5767) %>% 
+  kable() %>%
+  kable_styling()`
+```{r, echo = FALSE}
+# ------------------------------------ -
+# #### Set plot parameters ####
+# ------------------------------------
+
+# Set consistent plot parameters
+dodge = position_dodge(0.16)
+theme_set(theme_bw())
+plot_opts <- theme(panel.grid.minor.x = element_blank(),
+                   panel.grid.major.x = element_blank(), # hide gridlines
+                   legend.key = element_blank(),  # remove boxes around legend items
+                   plot.title = element_text(hjust = 0.5)) # center title
+
+```
+
+```{r, echo = FALSE, warning=FALSE}
+# ---- All data, all years -----
+# Only the highest burn count is retained to avoid overcounting contributions
+
+# ------- BOXPLOT by burn number
+title <- "FRP by burn number, all years, combined land cover"
+plot.name <- "AK_FRP by burn number_all years.png"
+
+# Get means
+means <- aggregate(frp ~ burn_num, df.fires.evt, mean)
+
+# Plot boxplot with mean values 
+p <- ggplot(df.fires.evt, aes(as.factor(burn_num), frp)) + 
+            geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
+            geom_point(data=x.frp.summary, aes(as.factor(burn_num), mean, shape = "mean"), size = 7) +
+            scale_shape_manual("", values = 18) +
+            geom_text(data = means, aes(label = round(frp, 2), y = frp + 16), hjust = -0.2) +
+            coord_cartesian(ylim = c(0,500), expand = TRUE) +
+            labs(x = "Burn number", y = "FRP") +
+            ggtitle(title)
+p + plot_opts
+
+#ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+```
+
+
+```{r, echo= FALSE, warning=FALSE}
+# ------- BOXPLOT by burn number, log plot
+
+title <- "Log FRP by burn number, all years"
+plot.name <- "AK_FRP by burn number_all years_log.png"
+
+
+# Plot boxplot with mean values 
+p <- ggplot(df.fires.evt, aes(as.factor(burn_num), log10(frp))) + 
+  geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
+  geom_point(data=means, aes(as.factor(burn_num), log10(frp), shape = "mean"), size = 7) +
+  scale_shape_manual("", values = 18) +
+  geom_text(data = means, aes(label = round(log10(frp), 2), y = log10(frp) + 0.1), 
+            hjust = -0.4, vjust = 0.1) +
+  labs(x = "Burn number", y = "log FRP") +
+  ggtitle(title)
+p + plot_opts
+
+#ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+#--------- BOXPLOT by max vegetation classes
+
+df.sub <- subset(df.fires.evt, (evt_group %in% x.maxevt.gp.top$evt_group))
+
+p <- ggplot(df.sub, aes(burn_num, log10(frp))) + 
+      geom_boxplot() + 
+      facet_wrap( ~ evt_group, ncol = 2) #+ 
+#      coord_cartesian(ylim = c(0, 800), expand = TRUE)
+p + plot_opts
+
+```
+```{r, echo=FALSE, warning=FALSE}
+#--------- BOXPLOT by vegetation groups of interest
+
+goi <- c('Aspen', 'BirchAspen', 'BlkSpruce', 'Grassland', 'Shrubland', 'Tundra', 'WhtSpruce')
+
+df.sub <- subset(df.fires.evt, (evt_group %in% goi))
+
+p <- ggplot(df.sub, aes(burn_num, log10(frp))) + 
+      geom_boxplot() + 
+      facet_wrap( ~ evt_group, ncol = 2) #+ 
+#      coord_cartesian(ylim = c(0, 800), expand = TRUE)
+p + plot_opts
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# -------- HISTOGRAM of distributions
+p <- ggplot(df.fires.evt, aes(x=log10(frp), fill = burn_num)) + 
+      geom_histogram(alpha = 0.5, position = "identity") 
+
+p + plot_opts
+```
+
+
+
+
+```{r, echo=FALSE}
+
+df.sub <- subset(df.fires.evt, evt_group %in% goi)
+
+
+df.ints <- 
+   df.sub %>% filter(reburn == 1) %>% 
+   mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
+   group_by(evt_group, ints) %>% 
+   summarise(mean.frp = mean(frp, na.rm = T), 
+             med.frp = median(frp, na.rm = T),
+             n = length(frp)) %>% 
+  filter(n > 10)
+
+ggplot(df.ints, aes(ints, med.frp, group = evt_group, color = evt_group)) + geom_line() + geom_point()
+
+
+
+```
+
+
+
+```{r, echo=FALSE}
+# For individual years. This mostly groups data geographically as well.
+
+for (yr in seq(2002, 2016)) {
+  
+  x.yr <- subset(df.fires.evt, fire_year == yr)
+  
+# ------- PLOT by burn number
+  title <- paste0("FRP by burn number, ", yr)
+  plot.name <- paste0("AK_FRP by burn number_", yr, ".png")
+
+  p <- ggplot(x.yr, aes(as.factor(burn_num), log10(frp))) + 
+    geom_boxplot() + 
+    #ylim(0, 1000) +
+    labs(x = "Burn number", y = "log FRP") +
+    ggtitle(title)
+  p + plot_opts
+#  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+
+# ------ PLOT by years since prior burn
+# Drop factors for which there are fewer than 10 points
+  keep <- levels(as.factor(x.yr$year_int))[table(x.yr$year_int) > 10]
+  x.sub.int <- x.yr[x.yr$year_int %in% keep, ]
+
+  title <- paste0("FRP by years since prior burn, ", yr)
+  plot.name <- paste0("AK_FRP by years since prior burn_", yr, ".png")
+
+  p <- ggplot(x.sub.int, aes(as.factor(year_int), log10(frp))) + 
+       geom_boxplot() + 
+       #ylim(0, 1000) + 
+       labs(x = "Years since prior burn", y = "log FRP") +
+       ggtitle(title)
+  p + plot_opts
+
+  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+
+# ------- PLOT by year of fire
+  keep <- levels(as.factor(x.yr$FireYear))[table(x.yr$FireYear) > 10]
+  x.sub.yr <- x.yr[x.yr$FireYear %in% keep, ]
+
+  title <- paste0("FRP by year of fire, ", yr)
+  plot.name <- paste0("AK_FRP by year of fire_", yr, ".png")
+
+  p <- ggplot(x.sub.yr, aes(as.factor(FireYear), log10(MaxFRP))) + 
+       geom_boxplot() + 
+       #ylim(0, 1000) +
+       labs(x = "Year of fire", y = "log FRP") +
+       ggtitle(title)
+  p + plot_opts
+
+  ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+  
+}
+```
+
+```{r}
+# -------- PLOT by mean fire interval
+  x.pts <- x.sub.int %>% group_by(year_int) %>% summarize(avg = mean(frp))
+
+x.pts <- subset(x, evt_group == 'WhtSpruce')
+x.pts <-  x.pts %>% group_by(burn_num, year_int) %>% summarise(avg = mean(frp))
+
+lm_eqn2 = function(df){
+  m = lm(y ~ poly(x, 3), df)#3rd degree polynomial
+  eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2,
+                   list(a = format(coef(m)[1], digits = 2),
+                        b = format(coef(m)[2], digits = 2),
+                        r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq))
+}
+
+  #title <- paste0("Mean FRP by year interval, ", yr)
+  #plot.name <- paste0("AK_FRP mean FRP by year ", yr, ".png")
+
+  p <- ggplot(x.pts, aes(year_int, avg)) + 
+       geom_point() + 
+       geom_smooth(method = 'lm', se = FALSE, size = 0.4) +
+       labs(x = "Years since prior burn", y = "FRP") +
+       annotate("text", x = 5, y = 400, label = lm_eqn2(x.pts, "avg", "year_int"), 
+           parse = TRUE, hjust = 0, vjust = 0, color = "#000000") +
+       ggtitle(title)
+  p + plot_opts
+
+#ggsave(filename = plot.name, path = path.plots, width = 10, height = 7, units = c("in"), dpi = 600)
+```
+
+# Calculate semivariograms
+x.copy <- x.yr
+
+# convert degrees to km distances
+x.copy$lon_km <- 110. * (x.copy$longitude - (-125))*cos(x.copy$latitude/(360/(2*pi)))
+x.copy$lat_km <- 110. * (x.copy$latitude-65)
+coordinates(x.copy) = ~lon_km+lat_km
+
+
+# ------- PLOT points in x,y km space  
+plot.name <- paste0("AK_FRP bubble plot ", yr, ".png")
+png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
+print(bubble(x.copy, zcol = 'MaxFRP', fill = T, do.sqrt = F, maxsize = 1.8))
+dev.off()
+
+# ------- PLOT variogram
+v = variogram(MaxFRP~1, x.copy)
+level <- c(0.5, 0.95)
+
+plot.name <- paste0("AK_FRP variogram ", yr, ".png")
+png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
+print(plot(v, fraction = 0.65, level=level))
+dev.off()
+
+
+# # ------PLOT directional variogram
+#   v.fit = fit.variogram(v, vgm("Sph"))
+#   x.copy.var.det <- variogram(MaxFRP~lat_km+lon_km, data = x.copy)
+#   
+#   plot.name <- paste0("AK_FRP directional variogram ", yr, ".png")
+#   p <- plot(x.copy.var.det)
+#   p
+
+plot.name <- paste0("AK_FRP directional variogram ", yr, ".png")
+
+x.copy.var.dir <- variogram(MaxFRP~1, data = x.copy, alpha = c(0, 45, 90, 135))
+png(file = file.path(path.plots, plot.name), width = 10, height = 7, units = c("in"), res = 600)
+print(plot(x.copy.var.dir))
+dev.off()
+
+}
+
+
+```{r, echo = FALSE}
+
+# --------------------------------- 
+# Stats
+# ---------------------------------
+
+# Calculate 2-way ANOVA; evt group and burn num
+x.anova <- aov(formula = frp ~ evt_group * burn_num, data = df.fires.evt)
+summary(x.anova)
+TukeyHSD(x.anova, which = "burn_num")
+TukeyHSD(x.anova, which = "evt_group")
+
+
+# Calculate anova: FRP vs year_int, evt, and burn_num
+x.anova <- aov(formula = frp ~ year_int * as.factor(evt_group) * burn_num, data = subset(df.fires.evt, reburn > 0))
+summary(x.anova)
+
+```
