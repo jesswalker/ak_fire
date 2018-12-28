@@ -1,0 +1,527 @@
+---
+title:  "Process AK FRP data"
+author: "JJWalker"
+date: "2018-12-01"
+output:
+  html_notebook:
+    highlight: tango
+    mathjax: null
+    number_sections: no
+    theme: spacelab
+---
+
+
+####_process_ak_frp_data.Rmd_
+
+This script inputs annual MxD14A1 FRP datasets produced in GEE and outputs an Rdata file for further plotting and analysis.  
+
+_Input files_:  mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016  
+
+_Output file_:  ak_frp_area_data.RData
+
+```{r, echo=FALSE}
+# Prior to input, FRP files are processed as follows: 
+
+#  * Formatted from GEE format to ArcMap-ready (_format_gee_file_for_import_into_arc.R_)
+#  * Intersected with the BLM fire history file (_intersect_frp_data_with_fire_perimeters.py_) to combine 
+#    * FRP data
+#    * EVT data (in the coincident MODIS 1-km pixel)
+#    * Fire history information
+```
+
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+# ---------------------------------------------------------------- #
+#### Set up ####
+# ---------------------------------------------------------------- #
+
+# Load libraries
+library(lubridate) 
+library(tidyverse)
+library(dtplyr)
+library(kableExtra) #kable tables
+library(knitr) #kable
+
+# Set paths
+#path.in <- "D:/projects/ak_fire"
+path.in = "/Users/jessicawalker/Documents/projects/ak_frp"
+#path.r <- "D:/projects/ak_fire/data"
+path.r <- file.path(path.in, "data")
+rdata <- "ak_frp_data_pixel_area.RData"
+#path.plots <- "D:/projects/ak_fire/output/plots/frp"
+path.plots <- file.path(path.in, "output/plots")
+
+source(file.path(path.in, "R", "ak_functions.R"))
+
+```
+
+
+```{r, echo = F}
+
+# ---------------------------------------------------------------- #
+#### Combine annual files ####
+# ---------------------------------------------------------------- #
+
+# Get the relevant filenames
+  filenames.in <- list.files(file.path(path.in, "data/intersected"), pattern = "*plus_fire_info_bufferIn600m.csv")
+  
+# Read all files to a single file. Suppress warnings b/c of spurious "incomplete last line" error
+  suppressWarnings(files.all <- do.call(rbind, lapply(file.path(path.in, "data/intersected", filenames.in), read.csv, row.names=NULL)))
+
+```
+
+```{r, echo = F}
+
+# ---------------------------------------------------------------- #
+#### Define columns ####
+# ---------------------------------------------------------------- #
+
+# Retain only specified columns
+  colNames <- c("index",
+  "class11", "class12", "class21", "class2197", "class22", "class23", "class24",     
+  "class2600", "class2601", "class2602", "class2603", "class2604", "class2605", "class2606", "class2607", "class2608", "class2609", 
+  "class2610", "class2611", "class2612",
+  "class2631", "class2633", "class2634", "class2635", "class2636", "class2638", "class2639", 
+  "class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649", 
+  "class2651", "class2652", 
+  "class2671", "class2677", "class2678", "class2679", 
+  "class2682", "class2683", "class2684", "class2685", "class2686", "class2687", "class2688", "class2689", 
+  "class2690", "class2691", "class2692", "class2699", 
+  "class2709", "class2718", "class2719", 
+  "class2720",
+  "class2730", 
+  "class2740", "class2741", "class2742", "class2743", "class2744", "class2745", "class2746", "class2747",
+  "class2751", "class2753", "class2756", "class2757", "class2758",     
+  "class2761", "class2762", "class2763", "class2764", 
+  "class2771", "class2772", "class2773", "class2774", "class2776", "class2777", 
+  "class2781", "class2782", "class2783", "class2784", "class2785", "class2786",     
+  "class2791", "class2792", "class2793", "class2794", 
+  "class31", 
+  "class81", "class82",
+  "MaxFRP", "latitude", "longitude",
+  "newdate", "FireYear", "FIREID", "DiscDate")
+
+ df.orig <- files.all[, colNames]
+ 
+```
+
+
+```{r, echo = F}
+
+# ---------------------------------------------------------------- #
+#### Define EVT columns ####
+# ---------------------------------------------------------------- #
+
+# Define EVT classes and consolidated groups
+  evt.classes <- data.frame(evt_number =  
+                c("class11", "class12", "class21", "class2197","class22","class23", "class24",
+                  "class2600", "class2601","class2602","class2603", "class2604","class2605","class2606","class260","class2608","class2609",
+                  "class2610","class2611","class2612",
+                  "class2631","class2633","class2634","class2635","class2636","class2638", "class2639",
+                  "class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649",
+                  "class2651", "class2652",
+                  "class2671","class2677","class2678", "class2679",
+                  "class2682", "class2683", "class2684", "class2685","class2686", "class2687", "class2688", "class2689",
+                  "class2690", "class2691", "class2692", "class2699",
+                  "class2709", "class2718", "class2719", 
+                  "class2720", 
+                  "class2730",
+                  "class2740","class2741", "class2742","class2743","class2744","class2745","class2746", "class2747",
+                  "class2751","class2753","class2756", "class2757", "class2758",
+                  "class2761", "class2762", "class2763","class2764",
+                  "class2771", "class2772", "class2773", "class2774", "class2776","class2777",
+                  "class2781", "class2782","class2783", "class2784", "class2785", "class2786", 
+                  "class2791", "class2792", "class2793", "class2794","class31", 
+                  "class81", "class82"),
+
+  evt_group = c("Water", "Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
+                   "WhtSpruce", "WhtSpruce", "BlkSpruce", "WhtSpruce", "BlkSpruce", "BirchAspen", "Aspen", 
+                   "BalsPopAsp", 
+                   "Shrubland", "Shrubland", "Shrubland", "Grassland", "Grassland","Shrubland", 
+                   "Grassland", 
+                   "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", 
+                   "BirchAspen", "Shrubland", "Spruce", "Grassland", 
+                   "Hemlock", "Hemlock", "Hemlock", 
+                    "Grassland", "Shrubland", "Grassland",
+                   "WhtSpruce", "WhtSpruce", "WhtSpruce", "Shrubland", 
+                   "Tundra", "Tundra", "Tundra", "Tundra", "Tundra",
+                   "Shrubland", "Shrubland", "Shrubland", 
+                   "Tundra", "Tundra", 
+                   "Grassland", "Grassland", 
+                   "Shrubland", "Shrubland", "Shrubland", "Peatland", "Marsh", "Tidal",
+                   "Tidal", "Wetland", "Wetland", "Wetland", "Wetland", "Grassland", "Wetland",
+                   "BlkSpruce", "Shrubland", "Shrubland", "Shrubland", "Floodplain", "Floodplain", "Floodplain",
+                   "Floodplain", "Peatland", "Peatland","Peatland", "Peatland", "Shrubland", "Swamp",
+                   "Tundra", "Tundra","Tundra","Tundra","Tundra","Tundra","Barren", "Barren", "Barren",
+                   "Barren", "Barren", "Agriculture", "Agriculture"))
+
+```
+
+
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### File clean up and formatting ####
+# ---------------------------------------------------------------- #
+
+# Point ID ('index') is unique to each point, though the same ID can occur in multiple rows since
+# a single point may have burned in multiple fires. The input format is unwieldy; replace with 
+# a simpler sequence of sequential numbers.
+  levels(df.orig$index) <- c(seq(1:length(levels(df.orig$index))))
+  
+# Rename columns  
+  oldnames = c("index","MaxFRP", "FireYear", "FIREID", "latitude", "longitude")
+  newnames = c("ptid", "frp", "fire_year", "fireid", "lat", "lon")
+  df.orig <- df.orig %>% rename_at(vars(oldnames), ~ newnames)
+
+# Incoming MODIS frp is scaled by 10; rescale
+  df.orig$frp <- 0.1 * df.orig$frp
+  
+# Remove NA-only columns
+  df.orig <- Filter(function(y) !all(is.na(y)), df.orig)
+
+# Remove rows in which frp == NA
+  df.orig <- df.orig[!is.na(df.orig$frp), ]
+
+# Format date columns and remove old ones
+  df.orig$modis_date <- as.Date(df.orig$newdate, format = "%m/%d/%Y")  #"%Y-%m-%d")
+  df.orig$fire_date <- as.Date(df.orig$DiscDate, format = "%m/%d/%Y")
+  df.orig$modis_year <- year(df.orig$modis_date)
+  
+# Ensure point id is a factor
+  df.orig$ptid <- factor(df.orig$ptid)
+
+# Remove unneeded columns
+  df.orig <- df.orig %>% select (-c(DiscDate, newdate))
+  
+# Remove all rows in which the modis date preceeds the fire date
+   df.orig <- df.orig[which(df.orig$modis_date > df.orig$fire_date), ]
+```
+###Assemble new dataframe of fires
+
+```{r, echo=FALSE, warning=F}
+
+# ---------------------------------------------------------------- #
+#### Set up the new fire df ####
+# ---------------------------------------------------------------- #
+
+# We need a row for each unique fire_year and modis_year.
+# fire_years are derived from the BLM fire history database; modis_years are from FRP data.
+# Both are necessary since some modis_years do not have a corresponding BLM fire_year.
+# Each will have an FRP value for each MODIS year; pre-MODIS years get frp = NA.
+
+# Set up df to hold entries for all points
+  df.holder <- setNames(data.frame(matrix(ncol = 6, nrow = 0)),  c('ptid', 'lat', 'long', 'fire_year', 'frp', 'fireid'))
+
+# Remove classes temporarily
+  df.noclasses <- df.orig %>% select(-starts_with('class'))
+  
+# Create 'classes' df with 1 entry for each ptid
+  df.classes <- df.orig %>% 
+                select(ptid, starts_with('class')) %>% 
+                distinct(ptid, .keep_all = T)
+
+```
+Example of a point with multiple associated fires (without class info):
+
+`r df.noclasses %>%
+          filter(ptid == 5767) %>% 
+          arrange(fire_year) %>% 
+          kable() %>%
+          kable_styling()`
+
+```{r, echo=FALSE}
+# ---------------------------------------------------------------- #
+#### Function to create new fire df ####
+# ---------------------------------------------------------------- #
+
+# For each ptid:
+# - get unique years from combined set of fire years and modis years
+#   (both are necessary b/c some modis years are not associated with a BLM fire) 
+# - construct a new dataframe with invariant info (lat, long, evt)
+# - replicate for the number of years 
+
+create_new_fire_df = function(f) {
+
+  # Trim factor levels
+  f$ptid <- factor(f$ptid)
+
+  # Create list of all unique fire and MODIS years. 
+  years <- unique(c(f$fire_year, f$modis_year))
+  
+  # Set up new df with invariant point info for given # of years
+  f.new <- f[1, c("ptid", "lat", "lon")] %>% slice(rep(1:n(), each = length(years)))
+
+  # Add fire years
+  f.new <- cbind(f.new, fire_year = years)
+
+  # Get the frp corresponding to the modis year. Years preceeding modis era get NA
+  # 'distinct' is to catch duplicates of modis year/frp, since the same frp is recorded for 
+  # multiple fire years that preceed the modis era
+  merge1 <- left_join(f.new, distinct(dplyr::select(f, modis_year, frp)), by = c("fire_year" = "modis_year"))
+     
+  # Join to get fire_id, etc.
+  merge2 <- merge1 %>% left_join(distinct(dplyr::select(f, fireid, fire_year), fire_year, .keep_all = T), by = c("fire_year"))
+  
+  # Consolidate wth holder dataframe
+   df.holder <- rbind(df.holder, merge2)
+   
+   return(df.holder) 
+  }
+```  
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+
+# ---------------------------------------------------------------- #
+#### Create new fire dataframe ####
+# ---------------------------------------------------------------- #
+
+# ** THIS TAKES A WHILE **
+
+# apply fcn to each ptid faction
+lst.fires <- df.noclasses %>% 
+            group_by(ptid) %>%
+            do(create_new_fire_df(.))
+
+# Convert from df of lists to just a df
+df.fires.noevt <- data.frame(lst.fires)
+df.fires.noevt <- df.fires.noevt[order(df.fires.noevt$ptid, df.fires.noevt$fire_year), ]
+
+```
+
+  
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### Function - Calculate burn number ####
+# ---------------------------------------------------------------- #
+
+# Count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
+  get_fire_order = function(df) {
+    df <- df %>% 
+      group_by(ptid) %>% 
+      arrange(fire_year) %>%  # put in ascending order
+      mutate(burn_num = seq_along(fire_year)) # assign a sequence number
+    df <- data.frame(df)
+    df$reburn <- 0 
+    df[which(as.numeric(df$burn_num) > 1), ]$reburn <- 1 # reburn: no = 0, yes = 1
+    df$year_int <- ave(df$fire_year, factor(df$ptid), FUN=function(t) c(0, diff(t))) # get years between fires
+  return(df)
+  }
+
+```
+
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### Get burn number for each point ####
+# ---------------------------------------------------------------- #
+
+df.fires.noevt <- get_fire_order(df.fires.noevt)
+```
+
+After processing, the same point id has this format:
+
+`r df.fires.noevt %>%
+  filter(ptid == 5767) %>% 
+  kable() %>%
+  kable_styling()`
+  
+Notes:
+
+  * FRP = NA if the fire was prior to the MODIS era (documented only through the BLM history database)  
+  * FRP pixels without a corresponding BLM database fire have BLM fire ID = NA, FRP = value 
+  * BLM database fires in the MODIS era without a registered FRP value are removed
+
+###EVT classes
+
+After EVT classes are added back to the dataframe:
+
+1. Determine EVT class with the greatest proportion in each 1-km MODIS pixel
+2. Calculate area of that EVT class in each pixel
+3. Remove pixels in which none of the classes had a majority
+
+```{r, echo = FALSE}
+
+# ---------------------------------------------------------------- #
+#### Merge fire df with EVT classes ####
+# ---------------------------------------------------------------- #
+
+# Necessary housekeeping
+df.fires.noevt$ptid <- as.factor(df.fires.noevt$ptid)
+df.classes$ptid <- as.numeric(df.classes$ptid)
+
+# Merge
+df.fires.evt <- merge(df.fires.noevt, df.classes, by = c("ptid"), all.x = T)
+
+```
+
+
+```{r, echo = FALSE, warning = F}
+
+# ---------------------------------------------------------------- #
+#### Process EVT classes ####
+# ---------------------------------------------------------------- #
+  
+  # Record the EVT class that had the greatest area in each 1-km MODIS pixel
+  df.fires.evt$max_evt_cat <- apply(df.fires.evt, 1, function(y) names(y[grepl("class", names(y))])[which.max(y[grepl("class", names(y))])[1]])
+  
+  # ...record the area that class represented
+  df.fires.evt$max_evt_area <- apply(df.fires.evt[grepl("class", names(df.fires.evt))], 1, max, na.rm = TRUE)
+  
+  # ...calculate the proportion of pixels that class represented
+  #df.fires.evt$max_evt_prop <- df.fires.evt$max_evt_pix/max_landsat_pixels * 100
+
+  # Remove rows in which max_class == NA; this means none of the classes had a majority
+  df.fires.evt <- df.fires.evt[!is.na(df.fires.evt$max_evt_cat), ]
+
+  # Convert to factor
+  df.fires.evt$max_evt_cat <- as.factor(df.fires.evt$max_evt_cat)
+
+  # Merge with file of EVT classes to associate a name with each class
+  df.fires.evt <- merge(df.fires.evt, evt.classes, by.x = "max_evt_cat", by.y = "evt_number")
+  
+  # Get rid of all individual classes. dplyr rocks!
+  df.fires.evt <- df.fires.evt %>% select(-starts_with('class'))
+  
+  # Convert burn_num to factor
+  df.fires.evt$burn_num <- as.factor(df.fires.evt$burn_num)
+  
+  # Rearrange 
+  df.fires.evt <- df.fires.evt %>% select(ptid:evt_group, max_evt_cat)
+
+```
+`r df.fires.evt %>%
+  filter(ptid == 5767) %>% 
+  arrange(fire_year) %>% 
+  kable() %>%
+  kable_styling()`
+  
+<br>
+
+
+###Summary stats
+  
+```{r, echo = F}
+
+# ---------------------------------------------------------------- #
+#### Calculate summary stats ####
+# ---------------------------------------------------------------- #
+
+# FRP by burn count (data)
+x.frp.summary <- df.fires.evt %>%
+                 group_by(burn_num) %>%
+                 summarize(mean = mean(frp, na.rm = T),
+                           med = median(frp, na.rm = T),
+                           n = length(burn_num))
+
+# > x.frp.summary
+# # A tibble: 6 x 4
+#   burn_num  mean   med     n
+#   <fct>    <dbl> <dbl> <int>
+# 1 1        395.  180.  43684
+# 2 2        259.  125.  11391
+# 3 3        273.   97.6  1169
+# 4 4        147.   79.6   164
+# 5 5         89.0  79.6    59
+# 6 6         77.2 100.      8
+```
+####Overall FRP summary
+`r x.frp.summary %>%
+      kable(digits = 1) %>%
+      kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)`
+
+```{r, echo=FALSE}
+
+# Get # of EVT classes with majorities
+x.maxevt.gp <- df.fires.evt %>% 
+                  group_by(evt_group, burn_num) %>%
+                  summarize (mean = mean(frp, na.rm = T), 
+                            med = median(frp, na.rm = T), 
+                            n = length(burn_num))
+
+# x.maxevt.gp <- data.frame(x.maxevt.gp)
+# > x.maxevt.gp
+#      evt_group burn_num      mean    med     n
+# 1  Agriculture        1       NaN     NA    13
+# 2  Agriculture        2  79.04167  28.15    13
+# 3  Agriculture        3  68.20000  68.20     1
+# 4        Aspen        1 224.40000 224.40     6
+# 5        Aspen        2 124.22000  22.10     5
+# 6       Barren        1 262.95556 142.35    21
+# 7       Barren        2  48.83333  53.30     3
+# 8   BirchAspen        1 353.46939 191.20  5165
+# 9   BirchAspen        2 266.03183 134.70  2278
+# 10  BirchAspen        3 357.14643 111.75   308
+# 11  BirchAspen        4 357.15610 147.90    43
+# 12  BirchAspen        5  60.28571  67.80     7
+# 13  BirchAspen        6  89.27500 100.50     4
+# 14   BlkSpruce        1 517.00040 236.40  7720
+# 15   BlkSpruce        2 358.18542 179.90  1311
+# 16   BlkSpruce        3 353.20928 254.60    97
+# 17      Burned        1 120.76000 113.40    37
+# 18      Burned        2 182.91111 204.60    27
+# 19      Burned        3  95.96667  81.30     9
+# 20  Floodplain        1 230.75295 121.00  2422
+# 21  Floodplain        2 210.15423 101.90   747
+# 22  Floodplain        3 134.63704  49.10    27
+# 23   Grassland        1 531.41340 271.00   343
+# 24   Grassland        2 210.39545 135.90    53
+# 25   Grassland        3 410.67778 528.40     9
+# 26       Marsh        1  74.60000  74.60     1
+# 27    Peatland        1 162.73345  97.80   465
+# 28    Peatland        2 145.04383  66.15   169
+# 29    Peatland        3 125.45714  15.00     7
+# 30   Shrubland        1 327.16200 155.40  3139
+# 31   Shrubland        2 187.77614 102.25  1106
+# 32   Shrubland        3 157.30638  78.60   152
+# 33   Shrubland        4  51.99545  57.55    22
+# 34   Shrubland        5  85.07500  77.40     4
+# 35        Snow        1 155.43333 159.00    15
+# 36        Snow        2 518.83333 273.70     9
+# 37       Swamp        1  46.71667  31.90    16
+# 38       Swamp        2  43.47143  45.10    10
+# 39       Swamp        3  70.40000  70.40     3
+# 40      Tundra        1 269.47828 129.00  4269
+# 41      Tundra        2 210.48984 112.20  1964
+# 42      Tundra        3  92.84247  56.70   312
+# 43      Tundra        4  73.30278  79.60    81
+# 44      Tundra        5  93.81053  79.60    39
+# 45      Tundra        6  79.96667 109.60     3
+# 46       Water        1 143.24211  80.80   112
+# 47       Water        2 187.54857 124.00    36
+# 48       Water        3  69.25000  69.25     2
+# 49     Wetland        1 339.95167 157.50 10165
+# 50     Wetland        2 252.14070 116.80  2048
+# 51     Wetland        3 134.20115  70.40    99
+# 52     Wetland        4  74.96154  68.70    16
+# 53     Wetland        5  92.52222 109.60     9
+# 54     Wetland        6  20.60000  20.60     1
+# 55   WhtSpruce        1 461.96088 219.25  9775
+# 56   WhtSpruce        2 312.68073 152.40  1612
+# 57   WhtSpruce        3 624.28380 387.70   143
+# 58   WhtSpruce        4  32.05000  32.05     2
+
+
+# Keep only those levels that have at least 10 points
+x.maxevt.gp.top <- x.maxevt.gp[x.maxevt.gp$n > 10, ]
+
+# Keep only those classes that have at least 2 burn levels
+x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% which(table(x.maxevt.gp.top$evt_group) < 2)), ]
+
+```
+
+####FRP summary by primary EVT class
+`r x.maxevt.gp.top %>%
+      kable(digits = 1) %>%
+      kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)`
+
+####Save data
+
+RData file is saved to `r file.path(path.r, rdata)`
+```{r, echo=FALSE}
+
+# Save data and environment settings   
+print(paste0("R data file saved to ", file.path(path.r, rdata)))
+save.image(file = file.path(path.r, rdata))
