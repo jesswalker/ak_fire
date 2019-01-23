@@ -99,7 +99,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
   "class2791", "class2792", "class2793", "class2794", 
   "class31", 
   "class81", "class82",
-  "MaxFRP", "latitude", "longitude",
+  "MaxFRP", "latitude", "longitude", "sample",
   "newdate", "FireYear", "FIREID", "DiscDate")
 
  x.orig <- files.all[, colNames]
@@ -212,7 +212,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
 # Each will have an FRP value for each MODIS year; pre-MODIS years get frp = NA.
 
 # Set up df to hold entries for all points
-  x.holder <- setNames(data.frame(matrix(ncol = 6, nrow = 0)),  c('ptid', 'lat', 'long', 'fire_year', 'frp', 'fireid'))
+  x.holder <- setNames(data.frame(matrix(ncol = 7, nrow = 0)),  c('ptid', 'lat', 'long', 'fire_year', 'frp', 'fireid', 'sample'))
 
 # Remove classes temporarily
   x.noclasses <- x.orig %>% select(-starts_with('class'))
@@ -260,7 +260,7 @@ create_new_fire_df = function(f) {
   # Get the frp corresponding to the modis year. Years preceeding modis era get NA
   # 'distinct' is to catch duplicates of modis year/frp, since the same frp is recorded for 
   # multiple fire years that preceed the modis era
-  merge1 <- left_join(f.new, distinct(dplyr::select(f, modis_year, frp)), by = c("fire_year" = "modis_year"))
+  merge1 <- left_join(f.new, distinct(dplyr::select(f, modis_year, frp, sample)), by = c("fire_year" = "modis_year"))
      
   # Join to get fire_id, etc.
   merge2 <- merge1 %>% left_join(distinct(dplyr::select(f, fireid, fire_year), fire_year, .keep_all = T), by = c("fire_year"))
@@ -536,7 +536,7 @@ x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% 
       
       
 ```{r, echo = FALSE}
-# Calculate area of fire pixels per year
+# Calculate area of fire pixels per year (in hectares)
 
 x.area.summary <- x.fires.evt %>% 
                     group_by(fire_year) %>% 
@@ -563,6 +563,34 @@ x.area.summary <- x.fires.evt %>%
 # 14      2015 1249929.
 # 15      2016  124953.
 ```
+
+
+
+####FRP summary of fire pixel area detected per year (in hectares)
+
+`r x.area.summary %>%
+      kable(digits = 1) %>%
+      kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)`
+
+```{r, echo= FALSE}
+
+# Retain only the 1st fire in the MODIS era to ensure the veg type is applicable
+x.temp1 <- x.fires.evt %>% 
+  filter(fire_year > 2001) %>% 
+  group_by(ptid) %>% 
+  arrange(fire_year) %>% 
+  slice(1) %>% 
+  ungroup()
+
+x.temp2 <- x.fires.evt %>% 
+  filter(fire_year <= 2001)
+           
+           
+x.fires.evt.1stfrp <- rbind(x.temp1, x.temp2)
+
+
+```
+
 
 ####Save data
 
