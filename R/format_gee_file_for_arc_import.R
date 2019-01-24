@@ -15,9 +15,11 @@
 #
 ########################################################################### #
 
+#library(dplyr)
 
 # Set path info
-path.in = "D:/projects/ak_fire/data/tables/gee_output"
+#path.in = "D:/projects/ak_fire/data/tables/gee_output"
+path.in = "/Users/jessicawalker/Documents/projects/ak_frp/data/gee_files/"
 filenames.in <- list.files(path.in, pattern = "*.csv")
 
 # Process each file
@@ -33,36 +35,45 @@ for (filename.in in filenames.in) {
 # R slaps an "X" in front of numerical columns; switch it to "class"
   names.sub <- names(x)[which((substring(names(x), 1, 1) == "X"))]
   names(x)[which((substring(names(x), 1,1) == "X"))] <- paste0("class", substring(names.sub, 2))
+  
+# get rid of dots
+  names(x) <- gsub(".", "", names(x), fixed = TRUE)
 
-# drop .geo column
-if (".geo" %in% names(x)) {
-  x$.geo <- NULL
-}
+# drop geo column
+if ("geo" %in% names(x)) {
+   x$geo <- NULL
+ }
+
+# drop class9999 column
+  if ("class9999" %in% names(x)) {
+    x$class9999 <- NULL
+  }
 
 # drop histogram column
-if ("histogram" %in% names(x)) {
-  x$histogram <- NULL
-}
+ if ("histogram" %in% names(x)) {
+   x$histogram <- NULL
+ }
 
 # drop label column
-if ("label" %in% names(x)) {
-  x$label <- NULL
-}
+ if ("label" %in% names(x)) {
+   x$label <- NULL
+ }
 
 # drop date column
-if ("date" %in% names(x)) {
-  x$date <- NULL
-}
+ if ("date" %in% names(x)) {
+   x$date <- NULL
+ }
 
 # drop lonID column
-if ("lonID" %in% names(x)) {
-  x$lonID <- NULL
-}
-
+ if ("lonID" %in% names(x)) {
+   x$lonID <- NULL
+ }
+ 
 # drop groups column
-  if ("groups" %in% names(x)) {
-    x$groups <- NULL
-  }
+   if ("groups" %in% names(x)) {
+     x$groups <- NULL
+   }
+  
 # drop 1st row, which is blank (1 exists for each file)
 x <- x[-1, ]
 
