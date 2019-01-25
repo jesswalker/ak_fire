@@ -28,13 +28,14 @@ output:
 # ---- Set environment ----
 
 # Remove existing data and values
-rm(list=ls())
+#rm(list=ls())
 
 # Load libraries
 library(ggplot2)
 library(lubridate)
 library(kableExtra)
 library(knitr)
+library(scales)
 
 # Set folder paths
 path.in <- "/Users/jessicawalker/Documents/projects/ak_frp"
@@ -75,12 +76,12 @@ plot_opts <- theme(panel.grid.minor.x = element_blank(),
 ```
 
 
-```{r, echo = FALSE, warning=FALSE}
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
 
 # Bin FRP into 50 MW bins, plot against frequency of pixels (area) on log scale for all years--
 # determine if something is changing wrt the intensity of fires over time
-x.sub <- subset(x.fires.evt, !is.na(frp))
-ggplot(x.sub, aes(frp)) + geom_histogram()
+x.sub <- subset(x.fires.evt, !is.na(frp_adj))
+ggplot(x.sub, aes(frp_adj)) + geom_histogram() + xlim(0, 3000)
 
 
 #2.  Winnow those pixels down to those where EVT takes up 90% of the pixel (i.e., "pure" pixels)
@@ -102,12 +103,12 @@ plot.name <- "AK_FRP by burn number_all years_log.png"
 
 
 # Plot boxplot with mean values 
-p <- ggplot(x.fires.evt, aes(as.factor(burn_num), frp)) +
+p <- ggplot(x.fires.evt, aes(as.factor(burn_num), frp_adj)) +
   scale_y_log10() +
   geom_boxplot(aes(fill = as.factor(burn_num)), show.legend = F) +
-  geom_point(data=means, aes(as.factor(burn_num), frp, shape = "mean"), size = 7) +
+  geom_point(data=x.frp.summary, aes(as.factor(burn_num), meanFRP, shape = "mean"), size = 7) +
   scale_shape_manual("", values = 18) +
-  geom_text(data = means, aes(label = round(frp, 1), y = frp + 0.7), 
+  geom_text(data = x.frp.summary, aes(label = round(meanFRP, 1), y = meanFRP + 0.7), 
             hjust = -0.1, vjust = -1.1) +
   labs(x = "Burn number", y = "FRP") +
   ggtitle(title)
@@ -123,7 +124,7 @@ Facet plot of all classes with more than 10 points per burn number
 
 x.sub <- subset(x.fires.evt, (evt_group %in% x.maxevt.gp.top$evt_group))
 
-p <- ggplot(x.sub, aes(burn_num, frp)) + 
+p <- ggplot(x.sub, aes(burn_num, frp_adj)) + 
       geom_boxplot() + 
       scale_y_log10() +
       facet_wrap( ~ evt_group, ncol = 2) #+ 
@@ -140,7 +141,25 @@ goi <- c('Aspen', 'BirchAspen', 'BlkSpruce', 'Grassland', 'Shrubland', 'Tundra',
 
 x.sub <- subset(x.fires.evt, (evt_group %in% goi))
 
-p <- ggplot(x.sub, aes(burn_num, frp)) + 
+p <- ggplot(x.sub, aes(burn_num, frp_adj)) + 
+      geom_boxplot() + 
+      scale_y_log10() +
+      facet_wrap( ~ evt_group, ncol = 2) #+ 
+#      coord_cartesian(ylim = c(0, 800), expand = TRUE)
+p + plot_opts
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+#--------- BOXPLOT by vegetation groups NOT of interest
+
+#goi <- c('Aspen', 'BirchAspen', 'BlkSpruce', 'Grassland', 'Shrubland', 'Tundra', 'Wetland', 'WhtSpruce')
+
+x.sub <- subset(x.fires.evt, !(evt_group %in% goi))
+
+p <- ggplot(x.sub, aes(burn_num, frp_adj)) + 
       geom_boxplot() + 
       scale_y_log10() +
       facet_wrap( ~ evt_group, ncol = 2) #+ 
@@ -151,10 +170,13 @@ p + plot_opts
 
 Histograms of burn distributions with at least 10 points:
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+
+
 # -------- HISTOGRAM of distributions
 
 x.sub <- subset(x.fires.evt, as.numeric(burn_num) < 7)
-p <- ggplot(x.sub, aes(x=frp, fill = burn_num)) + 
+p <- ggplot(x.sub, aes(x=frp_adj, fill = burn_num)) + 
       scale_x_log10() +
       scale_y_log10() +
       geom_histogram(alpha = 0.5, position = "identity") 
@@ -174,10 +196,10 @@ x.ints <-
    x.sub %>% filter(reburn == 1) %>% 
    mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
    group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp),
-             sd = sd(frp,na.rm = T)) %>% 
+   summarise(mean.frp = mean(frp_adj, na.rm = T), 
+             med.frp = median(frp_adj, na.rm = T),
+             n = length(frp_adj),
+             sd = sd(frp_adj,na.rm = T)) %>% 
              filter(n > 10)
 
 ggplot(x.ints, aes(ints, med.frp, group = evt_group, color = evt_group)) + 
@@ -200,10 +222,10 @@ x.ints <-
    x.sub %>% filter(reburn == 1) %>% 
    mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
    group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp),
-             sd = sd(frp,na.rm = T)) %>% 
+   summarise(mean.frp = mean(frp_adj, na.rm = T), 
+             med.frp = median(frp_adj, na.rm = T),
+             n = length(frp_adj),
+             sd = sd(frp_adj,na.rm = T)) %>% 
              filter(n > 10)
 
 # Plot
@@ -227,10 +249,10 @@ x.ints <-
    x.sub %>% filter(reburn == 1) %>% 
    mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
    group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp),
-             sd = sd(frp,na.rm = T)) %>% 
+   summarise(mean.frp = mean(frp_adj, na.rm = T), 
+             med.frp = median(frp_adj, na.rm = T),
+             n = length(frp_adj),
+             sd = sd(frp_adj, na.rm = T)) %>% 
              filter(n > 10)
 
 # Plot
@@ -254,10 +276,10 @@ x.ints <-
    x.sub %>% filter(reburn == 1) %>% 
    mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
    group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp),
-             sd = sd(frp,na.rm = T)) %>% 
+   summarise(mean.frp = mean(frp_adj, na.rm = T), 
+             med.frp = median(frp_adj, na.rm = T),
+             n = length(frp_adj),
+             sd = sd(frp_adj, na.rm = T)) %>% 
              filter(n > 10)
 
 # Plot
@@ -281,10 +303,10 @@ x.ints <-
    x.sub %>% filter(reburn == 1) %>% 
    mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
    group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp),
-             sd = sd(frp,na.rm = T)) %>% 
+   summarise(mean.frp = mean(frp_adj, na.rm = T), 
+             med.frp = median(frp_adj, na.rm = T),
+             n = length(frp_adj),
+             sd = sd(frp_adj, na.rm = T)) %>% 
              filter(n > 10)
 
 # Plot
@@ -296,9 +318,41 @@ ggplot(x.ints, aes(ints, med.frp, group = evt_group, color = evt_group)) +
 
 
 ```
-If proportion of max EVT class is at least 75%:
+If proportion of max EVT class is at least 60%:
+
 
 ```{r}
+
+# Set threshold for EVT proportion
+evt_min <- 0.60
+x.sub <- subset(x.fires.evt, evt_group %in% goi & max_evt_prop > evt_min)
+
+# Group dataset into time-since-fire intervals
+x.ints <- 
+   x.sub %>% filter(reburn == 1) %>% 
+   mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
+   group_by(evt_group, ints) %>% 
+   summarise(mean.frp = mean(frp_adj, na.rm = T), 
+             med.frp = median(frp_adj, na.rm = T),
+             n = length(frp_adj),
+             sd = sd(frp_adj, na.rm = T)) %>% 
+             filter(n > 10)
+
+# Plot
+ggplot(x.ints, aes(ints, med.frp, group = evt_group, color = evt_group)) + 
+  geom_line() + 
+  geom_point() +
+  xlab('Years between fires') +
+  ylab('Median FRP')
+
+
+```
+
+
+
+
+```{r}
+
 # Set threshold for EVT proportion
 evt_min <- 0.75
 x.sub <- subset(x.fires.evt, evt_group %in% goi & max_evt_prop > evt_min)
@@ -308,10 +362,10 @@ x.ints <-
    x.sub %>% filter(reburn == 1) %>% 
    mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
    group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp),
-             sd = sd(frp,na.rm = T)) %>% 
+   summarise(mean.frp = mean(frp_adj, na.rm = T), 
+             med.frp = median(frp_adj, na.rm = T),
+             n = length(frp_adj),
+             sd = sd(frp_adj, na.rm = T)) %>% 
              filter(n > 10)
 
 # Plot
@@ -324,56 +378,12 @@ ggplot(x.ints, aes(ints, med.frp, group = evt_group, color = evt_group)) +
 
 ```
 
-```{r, echo=FALSE}
-
-x.sub <- subset(x.fires.evt, evt_group %in% goi)
 
 
-x.ints <- 
-   x.sub %>% filter(reburn == 1) %>% 
-   mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
-   group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp)) %>% 
-  filter(n > 10)
-
-ggplot(x.ints, aes(ints, med.frp, group = evt_group, color = evt_group)) + 
-  geom_line() + 
-  geom_point() +
-  xlab('Years between fires') +
-  ylab('Median FRP')
-
-
-
-```
-```{r, echo=FALSE}
-
-x.sub <- subset(x.fires.evt, evt_group %in% goi)
-
-
-x.ints <- 
-   x.sub %>% filter(reburn == 1) %>% 
-   mutate(ints = cut(year_int, c(seq(0, 70, 10)))) %>% 
-   group_by(evt_group, ints) %>% 
-   summarise(mean.frp = mean(frp, na.rm = T), 
-             med.frp = median(frp, na.rm = T),
-             n = length(frp)) %>% 
-  filter(n > 10)
-
-ggplot(x.ints, aes(ints, med.frp, group = evt_group, color = evt_group)) + 
-  geom_line() + 
-  geom_point() +
-  xlab('Years between fires') +
-  ylab('Median FRP')
-
-
-
-```
 
 ```{r, echo=F}
 
-x.sub$bins <- cut(x.sub$year_int, breaks=c(seq(0,70,10)), labels=c("1-10","10-20","20-30", '30-40', '40-50', '50-60', '60-70'))
+x.sub$bins <- cut(x.sub$year_int, breaks=c(seq(0, 70, 10)), labels=c("1-10","10-20","20-30", '30-40', '40-50', '50-60', '60-70'))
                    
 
 
@@ -393,7 +403,7 @@ for (yr in seq(2002, 2016)) {
   title <- paste0("FRP by burn number, ", yr)
   plot.name <- paste0("AK_FRP by burn number_", yr, ".png")
 
-  p <- ggplot(x.yr, aes(as.factor(burn_num), log10(frp))) + 
+  p <- ggplot(x.yr, aes(as.factor(burn_num), log10(frp_adj))) + 
     geom_boxplot() + 
     #ylim(0, 1000) +
     labs(x = "Burn number", y = "log FRP") +
@@ -410,7 +420,7 @@ for (yr in seq(2002, 2016)) {
   title <- paste0("FRP by years since prior burn, ", yr)
   plot.name <- paste0("AK_FRP by years since prior burn_", yr, ".png")
 
-  p <- ggplot(x.sub.int, aes(as.factor(year_int), log10(frp))) + 
+  p <- ggplot(x.sub.int, aes(as.factor(year_int), log10(frp_adj))) + 
        geom_boxplot() + 
        #ylim(0, 1000) + 
        labs(x = "Years since prior burn", y = "log FRP") +
@@ -440,10 +450,10 @@ for (yr in seq(2002, 2016)) {
 
 ```{r}
 # -------- PLOT by mean fire interval
-  x.pts <- x.sub.int %>% group_by(year_int) %>% summarize(avg = mean(frp))
+  x.pts <- x.sub.int %>% group_by(year_int) %>% summarize(avg = mean(frp_adj))
 
 x.pts <- subset(x, evt_group == 'WhtSpruce')
-x.pts <-  x.pts %>% group_by(burn_num, year_int) %>% summarise(avg = mean(frp))
+x.pts <-  x.pts %>% group_by(burn_num, year_int) %>% summarise(avg = mean(frp_adj))
 
 lm_eqn2 = function(x){
   m = lm(y ~ poly(x, 3), x)#3rd degree polynomial
@@ -519,44 +529,98 @@ dev.off()
 # ---------------------------------
 
 # Calculate 2-way ANOVA; evt group and burn num
-x.anova <- aov(formula = frp ~ evt_group * burn_num, data = x.fires.evt)
+x.anova <- aov(formula = frp_adj ~ evt_group * burn_num, data = x.fires.evt)
 summary(x.anova)
 TukeyHSD(x.anova, which = "burn_num")
 TukeyHSD(x.anova, which = "evt_group")
 
 
 # Calculate anova: FRP vs year_int, evt, and burn_num
-x.anova <- aov(formula = frp ~ year_int * as.factor(evt_group) * burn_num, data = subset(x.fires.evt, reburn > 0))
+x.anova <- aov(formula = frp_adj ~ year_int * as.factor(evt_group) * burn_num, data = subset(x.fires.evt, reburn > 0))
 summary(x.anova)
 
 ```
 
 
 
+Frequency plot by year
+```{r, echo=FALSE, warning=FALSE}
 
-```{r}
+# Create frequency tables
+x.cut <- x.fires.evt[complete.cases(x.fires.evt[, 'frp_adj']), ]
+x.cut$bin <- cut(x.cut$frp_adj, breaks = c(seq(0, 12000, 100)), include.lowest = T)
 
-x.cut <- x.fires.evt[complete.cases(x.fires.evt[, 'frp']), ]
-x.cut$bin <- cut(x.cut$frp, breaks = c(seq(0, 12000, 100)), include.lowest = T)
+x.year.bin <- x.cut %>% 
+          group_by(bin, fire_year) %>% 
+          count()
 
-#x.test <- x.cut %>% group_by(bin) %>% count(.)
-#x.test$frp <- seq(100, 5500, by = 100)
-#x.test <- x.test %>% slice(1:(n()-1))
+# Break out the lower and upper ranges of the binned intervals
+x.year.bin <- cbind(x.year.bin, lower = as.numeric( sub("\\((.+),.*", "\\1", x.year.bin$bin) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", x.year.bin$bin) ))
 
-
-x.test <- x.cut %>% group_by(bin, fire_year) %>% count()
-#x.test <- x.test[-(nrow(x.test)),]
-x.test2 <- cbind(x.test, lower = as.numeric( sub("\\((.+),.*", "\\1", x.test$bin) ),
-      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", x.test$bin) ))
-
-
-x.test3 <- x.test2 %>% 
+x.year.prop <- x.year.bin %>%
   group_by(fire_year) %>% 
-  mutate(prop = n/sum(n))
+  mutate(prop = n/sum(n)) 
 
-x.test3$fire_year <- as.factor(x.test3$fire_year)
+ggplot(x.year.prop, aes(upper, prop, group = as.factor(fire_year), 
+                        color = as.factor(fire_year),
+                        shape = as.factor(fire_year))) + 
+  geom_point()  + 
+  theme_bw() +
+  xlab("FRP") +
+  ylab('Frequency') +
+  scale_x_log10() + 
+  scale_y_log10() +
+  scale_shape_manual(name = 'Year', values=c(19, 3, 19, 4, 19, 5, 19, 6, 19, 7, 19, 8, 19, 9, 20)) +
+  scale_color_discrete(name = 'Year') +
+  annotation_logticks(scaled = TRUE)
+
+
 
 ```
+
+Frequency plot by max veg class
+
+```{r, echo=FALSE, warning=FALSE}
+
+# Create frequency tables
+x.evt.sub <- x.fires.evt[x.fires.evt$evt_group %in% goi, ]
+x.evt.cut <- x.evt.sub[complete.cases(x.evt.sub[, 'frp_adj']), ]
+x.evt.cut$bin <- cut(x.evt.cut$frp_adj, breaks = c(seq(0, 12000, 100)), include.lowest = T)
+
+x.evt.bin <- x.evt.cut %>% 
+          group_by(bin, evt_group) %>% 
+          count()
+
+# Break out the lower and upper ranges of the binned intervals
+x.cut.evt.bin <- cbind(x.evt.bin, lower = as.numeric( sub("\\((.+),.*", "\\1", x.evt.bin$bin) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", x.evt.bin$bin) ))
+
+x.evt.prop <- x.cut.evt.bin %>%
+  group_by(evt_group) %>% 
+  mutate(prop = n/sum(n)) 
+
+ggplot(x.evt.prop, aes(upper, prop, group = evt_group, color = evt_group, shape = evt_group)) + 
+  geom_point() +
+  scale_x_log10() + 
+  scale_y_log10(limits = c(1e-04, 1)) +
+  xlab("FRP") +
+  ylab('Frequency') +
+  scale_shape_manual(name = 'EVT group', values=c(19, 3, 19, 4, 19, 5, 19, 6),
+                     breaks=c("Aspen", "BirchAspen", "BlkSpruce", "Grassland", "Shrubland",
+                                "Tundra", "Wetland", "WhtSpruce"),
+                       labels=c("Aspen", "Birch/Aspen", "Black Spruce", 'Grassland', 'Shrubland',
+                                'Tundra', 'Wetland', 'White Spruce')) +
+  scale_color_discrete(name = "EVT group",
+                       breaks=c("Aspen", "BirchAspen", "BlkSpruce", "Grassland", "Shrubland",
+                                "Tundra", "Wetland", "WhtSpruce"),
+                       labels=c("Aspen", "Birch/Aspen", "Black Spruce", 'Grassland', 'Shrubland',
+                                'Tundra', 'Wetland', 'White Spruce')) +
+  annotation_logticks(scaled = TRUE)
+
+
+```
+
 
 ```{r, echo=FALSE, warning = FALSE}
 
