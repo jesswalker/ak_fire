@@ -20,6 +20,7 @@ _Input files_:  mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016
 _Output file_:  ak_frp_area_data.RData
 
 ```{r, echo=FALSE}
+
 # Prior to input, FRP files are processed as follows: 
 
 #  * Formatted from GEE format to ArcMap-ready (_format_gee_file_for_import_into_arc.R_)
@@ -64,7 +65,9 @@ source(file.path(path.in, "R", "ak_functions.R"))
 # ---------------------------------------------------------------- #
 
 # Get the relevant filenames
-  filenames.in <- list.files(file.path(path.in, "data/intersected"), pattern = "*plus_fire_info_bufferIn600m.csv")
+#  filenames.in <- list.files(file.path(path.in, "data/intersected"), pattern = "*plus_fire_info_bufferIn600m.csv")
+  filenames.in <- list.files(file.path(path.in, "data/intersected"), pattern = "*_plus_fire_info.csv")
+
   
 # Read all files to a single file. Suppress warnings b/c of spurious "incomplete last line" error
   suppressWarnings(files.all <- do.call(rbind, lapply(file.path(path.in, "data/intersected", filenames.in), read.csv, row.names=NULL)))
@@ -99,7 +102,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
   "class2791", "class2792", "class2793", "class2794", 
   "class31", 
   "class81", "class82",
-  "MaxFRP", "latitude", "longitude", "sample",
+  "MaxFRP", "latitude", "longitude", "sample", "satellite",
   "newdate", "FireYear", "FIREID", "DiscDate")
 
  x.orig <- files.all[, colNames]
@@ -193,7 +196,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
   x.orig$ptid <- factor(x.orig$ptid)
 
 # Remove unneeded columns
-  x.orig <- x.orig %>% select (-c(DiscDate, newdate))
+  x.orig <- x.orig %>% select(-c(DiscDate, newdate))
   
 # Remove all rows in which the modis date preceeds the fire date
 #   x.orig <- x.orig[which(x.orig$modis_date < x.orig$fire_date), ]
@@ -212,7 +215,7 @@ source(file.path(path.in, "R", "ak_functions.R"))
 # Each will have an FRP value for each MODIS year; pre-MODIS years get frp = NA.
 
 # Set up df to hold entries for all points
-  x.holder <- setNames(data.frame(matrix(ncol = 7, nrow = 0)),  c('ptid', 'lat', 'long', 'fire_year', 'frp', 'fireid', 'sample'))
+  x.holder <- setNames(data.frame(matrix(ncol = 8, nrow = 0)),  c('ptid', 'lat', 'long', 'fire_year', 'frp', 'fireid', 'sample', 'satellite'))
 
 # Remove classes temporarily
   x.noclasses <- x.orig %>% select(-starts_with('class'))
@@ -260,7 +263,7 @@ create_new_fire_df = function(f) {
   # Get the frp corresponding to the modis year. Years preceeding modis era get NA
   # 'distinct' is to catch duplicates of modis year/frp, since the same frp is recorded for 
   # multiple fire years that preceed the modis era
-  merge1 <- left_join(f.new, distinct(dplyr::select(f, modis_year, frp, sample)), by = c("fire_year" = "modis_year"))
+  merge1 <- left_join(f.new, distinct(dplyr::select(f, modis_year, frp, sample, satellite)), by = c("fire_year" = "modis_year"))
      
   # Join to get fire_id, etc.
   merge2 <- merge1 %>% left_join(distinct(dplyr::select(f, fireid, fire_year), fire_year, .keep_all = T), by = c("fire_year"))
@@ -279,7 +282,7 @@ create_new_fire_df = function(f) {
 # ---------------------------------------------------------------- #
 
 # ** THIS TAKES A WHILE **
-# *** like, 1/2 hour or so ***
+# *** like, 40min or so ***
 
 # apply fcn to each ptid faction
 lst.fires <- x.noclasses %>% 
@@ -290,10 +293,14 @@ lst.fires <- x.noclasses %>%
 x.fires.noevt <- data.frame(lst.fires)
 x.fires.noevt <- x.fires.noevt[order(x.fires.noevt$ptid, x.fires.noevt$fire_year), ]
 
-# Identify all rows in which fires past 2001 have an NA FRP
-# dplyr rocks!
+# Identify all rows in which MODIS-era fires have an NA FRP
+# dplyr rocks with the anti_join
 frpNA <- subset(x.fires.noevt, is.na(frp) & fire_year > 2001)
 x.fires.noevt <- x.fires.noevt %>% anti_join(., frpNA)
+
+# This is a temporary measure to get rid of 2000 and 2001 frp values; should not have been imported
+frp2000_1 <- subset(x.fires.noevt, !is.na(frp) & (fire_year == 2000 | fire_year == 2001))
+x.fires.noevt <- x.fires.noevt %>% anti_join(., frp2000_1)
 
 ```
 
@@ -357,10 +364,13 @@ After EVT classes are added back to the dataframe, the process is to:
 
 # Necessary housekeeping
 x.fires.noevt$ptid <- as.factor(x.fires.noevt$ptid)
+x.fires.noevt$satellite <- as.factor(x.fires.noevt$satellite)
+
 x.classes$ptid <- as.numeric(x.classes$ptid)
 
 # Merge
 x.fires.evt <- merge(x.fires.noevt, x.classes, by = c("ptid"), all.x = T)
+
 
 ```
 
@@ -406,6 +416,209 @@ x.fires.evt <- merge(x.fires.noevt, x.classes, by = c("ptid"), all.x = T)
   kable_styling()`
   
   
+```{r, echo = F, warning = F}
+
+# attempt to correct for the bowtie effect -- MEDIAN
+
+temp.all <- x.fires.evt %>% group_by(sample) %>% summarize(frp_mean = mean(frp), frp_med = median(frp))
+
+fit_med <- lm(frp_med ~ poly(sample, 2, raw=TRUE), data = temp.all)
+
+coeff0 <- summary(fit_med)$coefficients[1, 1]
+coeff1 <- summary(fit_med)$coefficients[2, 1]
+coeff2 <- summary(fit_med)$coefficients[3, 1]
+
+temp.all$fit_med <- coeff0 + (coeff1 * temp$sample) + (coeff2 * temp.all$sample^2)
+
+ggplot(temp.all, aes(sample, frp_med)) + 
+  geom_point() + 
+  geom_line(data = temp.all, aes(sample, fit_med, color = 'red'), size = 1.2) +
+  theme_bw()
+```
+ 
+```{r, echo = F,warning = FALSE}
+
+#Make adjustments - MEDIAN
+frp.min <- min(temp.all$fit_med, na.rm = T)
+
+# Apply the minimum across the fit curve to calculate an adjustment ratio
+temp.all$adj_med <- frp.min/temp.all$fit_med
+
+# Multiply the actual frp by that adjustment 
+temp.all$frp_med_new <- temp.all$frp_med * temp.all$adj_med
+
+ggplot(temp.all, aes(sample, frp_med_new)) + geom_point() + theme_bw()
+
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+# MEAN
+
+fit_mean <- lm(frp_mean ~ poly(sample, 2, raw = TRUE), data = temp.all)
+
+coeff0 <- summary(fit_mean)$coefficients[1, 1]
+coeff1 <- summary(fit_mean)$coefficients[2, 1]
+coeff2 <- summary(fit_mean)$coefficients[3, 1]
+
+temp.all$fit_mean <- coeff0 + (coeff1 * temp.all$sample) + (coeff2 * temp.all$sample^2)
+
+ggplot(temp.all, aes(sample, frp_mean)) + 
+  geom_point() + 
+  geom_line(data = temp.all, aes(sample, fit_mean, color = 'Aqua'), size = 1.2) +
+  theme_bw()
+```
+ 
+```{r, echo = F, warning=F,message=F}
+
+#Make adjustments - MEAN
+frp.min <- min(temp.all$fit_mean, na.rm = T)
+
+# Apply the minimum across the fit curve to calculate an adjustment ratio
+temp.all$adj_mean <- frp.min/temp.all$fit_mean
+
+# Multiply the actual frp by that adjustment 
+temp.all$frp_mean_new <- temp.all$frp_mean * temp.all$adj_mean
+
+ggplot(temp.all, aes(sample, frp_mean_new)) + geom_point() + theme_bw()
+
+```
+
+
+```{r, echo=F, warning=FALSE}
+
+# Calculate polynomial fit - MEDIAN - Terra
+
+x.fires.evt.terra <- subset(x.fires.evt, satellite == '0')
+temp.t <- x.fires.evt.terra %>% group_by(sample) %>% summarize(frp_mean = mean(frp), frp_med = median(frp))
+
+fit_med <- lm(frp_med ~ poly(sample, 2, raw = TRUE), data = temp.t)
+
+coeff0 <- summary(fit_med)$coefficients[1, 1]
+coeff1 <- summary(fit_med)$coefficients[2, 1]
+coeff2 <- summary(fit_med)$coefficients[3, 1]
+
+temp.t$fit_med <- coeff0 + (coeff1 * temp.t$sample) + (coeff2 * temp.t$sample^2)
+
+ggplot(temp.t, aes(sample, frp_med)) + 
+  geom_point() + 
+  geom_line(data = temp.t, aes(sample, fit_med, color = 'Terra'), size = 1.2) +
+  theme_bw()
+
+```
+
+```{r,echo=F, warning=F}
+
+# Calculate polynomial fit - MEDIAN - Aqua
+
+x.fires.evt.aqua <- subset(x.fires.evt, satellite == '1')
+temp.a <- x.fires.evt.aqua %>% group_by(sample) %>% summarize(frp_mean = mean(frp), frp_med = median(frp))
+
+fit_med <- lm(frp_med ~ poly(sample, 2, raw = TRUE), data = temp.a)
+
+coeff0 <- summary(fit_med)$coefficients[1, 1]
+coeff1 <- summary(fit_med)$coefficients[2, 1]
+coeff2 <- summary(fit_med)$coefficients[3, 1]
+
+temp.a$fit_med <- coeff0 + (coeff1 * temp.a$sample) + (coeff2 * temp.a$sample^2)
+
+ggplot(temp.a, aes(sample, frp_med)) + 
+  geom_point() + 
+  geom_line(data = temp.a, aes(sample, fit_med, color = 'Terra'), size = 1.2) +
+  theme_bw()
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+# plot of all median points (no satellite distinction) and separately calculated fits
+ggplot(temp.all, aes(sample, frp_med)) + 
+  geom_point() + 
+  geom_line(data = temp.a, aes(sample, fit_med, color = 'aqua'), size = 1.2) +
+  geom_line(data = temp.t, aes(sample, fit_med, color = 'terra'), size = 1.2) +
+  theme_bw()
+
+```
+
+```{r, echo=F, warning=FALSE}
+
+# Correct separately - AQUA
+
+#Make adjustments - MEDIAN - AQUA
+frp.min <- min(temp.a$fit_med, na.rm = T)
+
+# Apply the minimum across the fit curve to calculate an adjustment ratio
+temp.a$adj_med <- frp.min/temp.a$fit_med
+
+# Now associate the sample # in the full database with the adjustment ratio
+merge.a <- left_join(x.fires.evt.aqua, distinct(dplyr::select(temp.a, sample, adj_med)), by = "sample")
+
+# Multiply the actual frp by that adjustment 
+merge.a$frp_adj <- merge.a$frp * merge.a$adj_med
+
+```
+
+
+```{r, echo=F, warning=FALSE}
+
+# Look at improvement in median for AQUA
+
+test.a <- merge.a %>% group_by(sample) %>% summarize(frp_med = median(frp_adj))
+
+ggplot(test.a, aes(sample, frp_med)) + geom_point(color = "blue") +
+  geom_point(data=temp.a, aes(sample, frp_med), color = "black") + scale_y_log10()
+
+```
+
+```{r, echo=F, warning=FALSE}
+
+# Correct separately - TERRA
+
+#Make adjustments - MEDIAN 
+frp.min <- min(temp.t$fit_med, na.rm = T)
+
+# Apply the minimum across the fit curve to calculate an adjustment ratio for each sample
+temp.t$adj_med <- frp.min/temp.t$fit_med
+
+# Now associate the sample # in the full database with the adjustment ratio
+merge.t <- left_join(x.fires.evt.terra, distinct(dplyr::select(temp.t, sample, adj_med)), by = "sample")
+
+# Multiply the actual frp by that adjustment 
+merge.t$frp_adj <- merge.t$frp * merge.t$adj_med
+
+```
+
+
+```{r, echo=F, warning=FALSE}
+
+# Look at improvement in median for TERRA
+
+test.t <- merge.t %>% group_by(sample) %>% summarize(frp_med = median(frp_adj))
+
+ggplot(test.t, aes(sample, frp_med)) + geom_point(color = "blue") +
+  geom_point(data=temp.t, aes(sample, frp_med))
+
+```
+
+
+```{r}
+# combine the corrected datasets
+
+
+x.fires.evt.nosat <- subset(x.fires.evt, is.na(satellite))
+x.fires.evt.nosat$adj_med <- NA
+x.fires.evt.nosat$frp_adj <- NA
+
+x.fires.evt.new <- rbind(merge.a, merge.t, x.fires.evt.nosat)
+
+```
+
+
+
+  
 ###Summary stats
   
 ```{r, echo = F}
@@ -415,10 +628,10 @@ x.fires.evt <- merge(x.fires.noevt, x.classes, by = c("ptid"), all.x = T)
 # ---------------------------------------------------------------- #
 
 # FRP by burn count (data)
-x.frp.summary <- x.fires.evt %>%
+x.frp.summary <- x.fires.evt.new %>%
                  group_by(burn_num) %>%
-                 summarize(meanFRP = mean(frp, na.rm = T),
-                           medFRP = median(frp, na.rm = T),
+                 summarize(meanFRP = mean(frp_adj, na.rm = T),
+                           medFRP = median(frp_adj, na.rm = T),
                            n = length(burn_num))
 # > x.frp.summary
 # # A tibble: 8 x 4
@@ -441,7 +654,7 @@ x.frp.summary <- x.fires.evt %>%
 ```{r, echo=FALSE}
 
 # Get # of EVT classes with majorities
-x.maxevt.gp <- x.fires.evt %>% 
+x.maxevt.gp <- x.fires.evt.new %>% 
                   group_by(evt_group, burn_num) %>%
                   summarize (meanFRP = mean(frp, na.rm = T), 
                             medFRP = median(frp, na.rm = T), 
@@ -538,7 +751,7 @@ x.maxevt.gp.top <- x.maxevt.gp.top[!(as.numeric(x.maxevt.gp.top$evt_group) %in% 
 ```{r, echo = FALSE}
 # Calculate area of fire pixels per year (in hectares)
 
-x.area.summary <- x.fires.evt %>% 
+x.area.summary <- x.fires.evt.new %>% 
                     group_by(fire_year) %>% 
                     filter(fire_year > 2001) %>% 
                     summarize(sum_area = sum(evt_sum)*1e-4)  # 1 m^2 = 1e-4
@@ -575,14 +788,14 @@ x.area.summary <- x.fires.evt %>%
 ```{r, echo= FALSE}
 
 # Retain only the 1st fire in the MODIS era to ensure the veg type is applicable
-x.temp1 <- x.fires.evt %>% 
+x.temp1 <- x.fires.evt.new %>% 
   filter(fire_year > 2001) %>% 
   group_by(ptid) %>% 
   arrange(fire_year) %>% 
   slice(1) %>% 
   ungroup()
 
-x.temp2 <- x.fires.evt %>% 
+x.temp2 <- x.fires.evt.new %>% 
   filter(fire_year <= 2001)
            
            
