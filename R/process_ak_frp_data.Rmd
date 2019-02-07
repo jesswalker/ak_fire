@@ -15,7 +15,7 @@ output:
 
 This script inputs annual MxD14A1 FRP datasets produced in GEE and outputs an Rdata file for further plotting and analysis.  
 
-_Input files_:  mxda1_gee_<yyyy>_plus_fire_info.csv, where <yyyy> = 2002-2016  
+_Input files_:  mxda1_gee_yyyy_plus_fire_info.csv, where yyyy = 2002-2016  
 
 _Output file_:  ak_frp_area_data.RData
 
@@ -37,12 +37,20 @@ _Output file_:  ak_frp_area_data.RData
 #### Set up ####
 # ---------------------------------------------------------------- #
 
-# Load libraries
-library(lubridate) 
-library(tidyverse)
-library(dtplyr)
-library(kableExtra) #kable tables
-library(knitr) #kable
+load_libraries <- function(libs){
+  for(lib in libs){
+    if(!require(lib, character.only = TRUE)){    # Require returns TRUE if package loaded
+      install.packages(lib, dependencies = TRUE) # If package couldn't load, re-install
+      require(lib, character.only = TRUE)        # Load package after installing
+    }
+  }
+}
+
+#  Try/install packages
+load_libraries(c("lubridate", "tidyverse", "dtplyr", "kableExtra", "knitr") )
+
+# Having raster attached can mess everything up
+# detach("package:raster", unload=TRUE)
 
 # Set paths
 #path.in <- "D:/projects/ak_fire"
@@ -68,44 +76,20 @@ source(file.path(path.in, "R", "ak_functions.R"))
 #  filenames.in <- list.files(file.path(path.in, "data/intersected"), pattern = "*plus_fire_info_bufferIn600m.csv")
   filenames.in <- list.files(file.path(path.in, "data/intersected"), pattern = "*_plus_fire_info.csv")
 
-  
 # Read all files to a single file. Suppress warnings b/c of spurious "incomplete last line" error
   suppressWarnings(files.all <- do.call(rbind, lapply(file.path(path.in, "data/intersected", filenames.in), read.csv, row.names=NULL)))
-
 ```
+
 
 ```{r, echo = F}
 
 # ---------------------------------------------------------------- #
-#### Define columns ####
+#### Select columns ####
 # ---------------------------------------------------------------- #
 
-# Retain only specified columns
-  colNames <- c("index",
-  "class11", "class12", "class21", "class2197", "class22", "class23", "class24",     
-  "class2600", "class2601", "class2602", "class2603", "class2604", "class2605", "class2606", "class2607", "class2608", "class2609", 
-  "class2610", "class2611", "class2612",
-  "class2631", "class2633", "class2634", "class2635", "class2636", "class2638", "class2639", 
-  "class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649", 
-  "class2651", "class2652", 
-  "class2671", "class2677", "class2678", "class2679", 
-  "class2682", "class2683", "class2684", "class2685", "class2686", "class2687", "class2688", "class2689", 
-  "class2690", "class2691", "class2692", "class2699", 
-  "class2709", "class2718", "class2719", 
-  "class2720",
-  "class2730", 
-  "class2740", "class2741", "class2742", "class2743", "class2744", "class2745", "class2746", "class2747",
-  "class2751", "class2753", "class2756", "class2757", "class2758",     
-  "class2761", "class2762", "class2763", "class2764", 
-  "class2771", "class2772", "class2773", "class2774", "class2776", "class2777", 
-  "class2781", "class2782", "class2783", "class2784", "class2785", "class2786",     
-  "class2791", "class2792", "class2793", "class2794", 
-  "class31", 
-  "class81", "class82",
-  "MaxFRP", "latitude", "longitude", "sample", "satellite",
-  "newdate", "FireYear", "FIREID", "DiscDate")
-
- x.orig <- files.all[, colNames]
+  x.orig <- files.all %>% 
+                select(index, starts_with('class'), MaxFRP, latitude, longitude,
+                       sample, satellite, newdate, FireYear, FIREID, DiscDate) 
  
 ```
 
@@ -116,48 +100,64 @@ source(file.path(path.in, "R", "ak_functions.R"))
 #### Define EVT columns ####
 # ---------------------------------------------------------------- #
 
-# Define EVT classes and consolidated groups
-  evt.classes <- data.frame(evt_number =  
-                c("class11", "class12", "class21", "class2197","class22","class23", "class24",
-                  "class2600", "class2601","class2602","class2603", "class2604","class2605","class2606","class260","class2608","class2609",
-                  "class2610","class2611","class2612",
-                  "class2631","class2633","class2634","class2635","class2636","class2638", "class2639",
-                  "class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649",
-                  "class2651", "class2652",
-                  "class2671","class2677","class2678", "class2679",
-                  "class2682", "class2683", "class2684", "class2685","class2686", "class2687", "class2688", "class2689",
-                  "class2690", "class2691", "class2692", "class2699",
-                  "class2709", "class2718", "class2719", 
-                  "class2720", 
-                  "class2730",
-                  "class2740","class2741", "class2742","class2743","class2744","class2745","class2746", "class2747",
-                  "class2751","class2753","class2756", "class2757", "class2758",
-                  "class2761", "class2762", "class2763","class2764",
-                  "class2771", "class2772", "class2773", "class2774", "class2776","class2777",
-                  "class2781", "class2782","class2783", "class2784", "class2785", "class2786", 
-                  "class2791", "class2792", "class2793", "class2794","class31", 
-                  "class81", "class82"),
+# Read in data file from GDrive
+# MyDrive/Work/projects/ak_frp/frp_evt_classes.csv...for some reason the Google Doc version wouldn't work
 
-  evt_group = c("Water", "Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
-                   "WhtSpruce", "WhtSpruce", "BlkSpruce", "WhtSpruce", "BlkSpruce", "BirchAspen", "Aspen", 
-                   "BalsPopAsp", 
-                   "Shrubland", "Shrubland", "Shrubland", "Grassland", "Grassland","Shrubland", 
-                   "Grassland", 
-                   "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", 
-                   "BirchAspen", "Shrubland", "Spruce", "Grassland", 
-                   "Hemlock", "Hemlock", "Hemlock", 
-                    "Grassland", "Shrubland", "Grassland",
-                   "WhtSpruce", "WhtSpruce", "WhtSpruce", "Shrubland", 
-                   "Tundra", "Tundra", "Tundra", "Tundra", "Tundra",
-                   "Shrubland", "Shrubland", "Shrubland", 
-                   "Tundra", "Tundra", 
-                   "Grassland", "Grassland", 
-                   "Shrubland", "Shrubland", "Shrubland", "Peatland", "Marsh", "Tidal",
-                   "Tidal", "Wetland", "Wetland", "Wetland", "Wetland", "Grassland", "Wetland",
-                   "BlkSpruce", "Shrubland", "Shrubland", "Shrubland", "Floodplain", "Floodplain", "Floodplain",
-                   "Floodplain", "Peatland", "Peatland","Peatland", "Peatland", "Shrubland", "Swamp",
-                   "Tundra", "Tundra","Tundra","Tundra","Tundra","Tundra","Barren", "Barren", "Barren",
-                   "Barren", "Barren", "Agriculture", "Agriculture"))
+data_url <- "1ijlTvo4y6cH75Z247MpZ4szAecj3ff7z" # google file ID
+evt.classes <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", data_url))
+
+# Add 'class' to each class #
+evt.classes$evt_class <- paste0('class', evt.classes$evt_class)
+
+# Change column names to conform to existing 
+names(evt.classes) <- c('evt_number', 'evt_group')
+
+
+# 
+# 
+# # change to automatically read in from GDrive
+# # Define EVT classes and consolidated groups
+#   evt.classes <- data.frame(evt_number =  
+#                 c("class11", "class12", "class21", "class2197","class22","class23", "class24",
+#                   "class2600", "class2601","class2602","class2603", "class2604","class2605","class2606","class2607","class2608","class2609",
+#                   "class2610","class2611","class2612",
+#                   "class2631","class2633","class2634","class2635","class2636","class2638", "class2639",
+#                   "class2640", "class2642", "class2643", "class2644", "class2645", "class2646", "class2648", "class2649",
+#                   "class2651", "class2652",
+#                   "class2671","class2677","class2678", "class2679",
+#                   "class2682", "class2683", "class2684", "class2685","class2686", "class2687", "class2688", "class2689",
+#                   "class2690", "class2691", "class2692", "class2699",
+#                   "class2709", "class2718", "class2719", 
+#                   "class2720", 
+#                   "class2730",
+#                   "class2740","class2741", "class2742","class2743","class2744","class2745","class2746", "class2747",
+#                   "class2751","class2753","class2756", "class2757", "class2758",
+#                   "class2761", "class2762", "class2763","class2764",
+#                   "class2771", "class2772", "class2773", "class2774", "class2776","class2777",
+#                   "class2781", "class2782","class2783", "class2784", "class2785", "class2786", 
+#                   "class2791", "class2792", "class2793", "class2794","class31", 
+#                   "class81", "class82"),
+# 
+#   evt_group = c("Water", "Snow", "Developed", "Burned", "Developed", "Developed", "Developed",
+#                    "WhtSpruce", "WhtSpruce", "BlkSpruce", "WhtSpruce", "BlkSpruce", "BirchAspen", "Aspen", 
+#                    "BalsPopAsp", 
+#                    "Shrubland", "Shrubland", "Shrubland", "Grassland", "Grassland","Shrubland", 
+#                    "Grassland", 
+#                    "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", "Shrubland", 
+#                    "BirchAspen", "Shrubland", "Spruce", "Grassland", 
+#                    "Hemlock", "Hemlock", "Hemlock", 
+#                     "Grassland", "Shrubland", "Grassland",
+#                    "WhtSpruce", "WhtSpruce", "WhtSpruce", "Shrubland", 
+#                    "Tundra", "Tundra", "Tundra", "Tundra", "Tundra",
+#                    "Shrubland", "Shrubland", "Shrubland", 
+#                    "Tundra", "Tundra", 
+#                    "Grassland", "Grassland", 
+#                    "Shrubland", "Shrubland", "Shrubland", "Peatland", "Marsh", "Tidal",
+#                    "Tidal", "Wetland", "Wetland", "Wetland", "Wetland", "Grassland", "Wetland",
+#                    "BlkSpruce", "Shrubland", "Shrubland", "Shrubland", "Floodplain", "Floodplain", "Floodplain",
+#                    "Floodplain", "Peatland", "Peatland", "Peatland", "Peatland", "Shrubland", "Swamp",
+#                    "Tundra", "Tundra", "Tundra", "Tundra", "Tundra","Tundra", "Barren", "Barren", "Barren",
+#                    "Barren", "Barren", "Agriculture", "Agriculture"))
 
 ```
 
@@ -186,7 +186,12 @@ source(file.path(path.in, "R", "ak_functions.R"))
 
 # Remove rows in which frp == NA
   x.orig <- x.orig[!is.na(x.orig$frp), ]
-
+  
+# Remove rows in which all classes == NA
+ # col_start <- which(colnames(x.orig) == "class11")
+ # col_end <- which(colnames(x.orig) == "class82")
+ # x.orig <- x.orig[!apply(x.orig[col_start:col_end], 1, function(x) all(is.na(x))), ]
+  
 # Format date columns and remove old ones
   x.orig$modis_date <- as.Date(x.orig$newdate, format = "%m/%d/%Y")  #"%Y-%m-%d")
   x.orig$fire_date <- as.Date(x.orig$DiscDate, format = "%m/%d/%Y")
@@ -204,7 +209,6 @@ source(file.path(path.in, "R", "ak_functions.R"))
 ###Assemble new dataframe of fires
 
 ```{r, echo=FALSE, warning=F}
-
 # ---------------------------------------------------------------- #
 #### Set up the new fire df ####
 # ---------------------------------------------------------------- #
@@ -217,23 +221,16 @@ source(file.path(path.in, "R", "ak_functions.R"))
 # Set up df to hold entries for all points
   x.holder <- setNames(data.frame(matrix(ncol = 8, nrow = 0)),  c('ptid', 'lat', 'long', 'fire_year', 'frp', 'fireid', 'sample', 'satellite'))
 
-# Remove classes temporarily
+# Create df without classes
   x.noclasses <- x.orig %>% select(-starts_with('class'))
   
-# Create 'classes' df with 1 entry for each ptid. Include the areal sum for each pixel
+# Create df of classes info for each pixel. Remove duplicates to get 1 row for each ptid. Include areal sum for each pixel
   x.classes <- x.orig %>% 
                 select(ptid, starts_with('class')) %>% 
                 distinct(ptid, .keep_all = T) %>% 
                 mutate(evt_sum = rowSums(.[,-1], na.rm = TRUE))
 
 ```
-The ingested dataset has redundancies due to the fact that FRP pixels are paired with each coincident fire perimeter from all previous years. Example of a point with multiple associated fires (without class info):
-
-`r x.noclasses %>%
-          filter(ptid == 5767) %>% 
-          arrange(fire_year) %>% 
-          kable() %>%
-          kable_styling()`
 
 ```{r, echo=FALSE}
 # ---------------------------------------------------------------- #
@@ -282,7 +279,7 @@ create_new_fire_df = function(f) {
 # ---------------------------------------------------------------- #
 
 # ** THIS TAKES A WHILE **
-# *** like, 40min or so ***
+# *** like, 45 min or so ***
 
 # apply fcn to each ptid faction
 lst.fires <- x.noclasses %>% 
@@ -293,14 +290,14 @@ lst.fires <- x.noclasses %>%
 x.fires.noevt <- data.frame(lst.fires)
 x.fires.noevt <- x.fires.noevt[order(x.fires.noevt$ptid, x.fires.noevt$fire_year), ]
 
-# Identify all rows in which MODIS-era fires have an NA FRP
+# Remove all rows in which MODIS-era fires have an NA FRP
 # dplyr rocks with the anti_join
 frpNA <- subset(x.fires.noevt, is.na(frp) & fire_year > 2001)
 x.fires.noevt <- x.fires.noevt %>% anti_join(., frpNA)
 
 # This is a temporary measure to get rid of 2000 and 2001 frp values; should not have been imported
-frp2000_1 <- subset(x.fires.noevt, !is.na(frp) & (fire_year == 2000 | fire_year == 2001))
-x.fires.noevt <- x.fires.noevt %>% anti_join(., frp2000_1)
+#frp2000_1 <- subset(x.fires.noevt, !is.na(frp) & (fire_year == 2000 | fire_year == 2001))
+#x.fires.noevt <- x.fires.noevt %>% anti_join(., frp2000_1)
 
 ```
 
@@ -311,7 +308,7 @@ x.fires.noevt <- x.fires.noevt %>% anti_join(., frp2000_1)
 #### Function - Calculate burn number ####
 # ---------------------------------------------------------------- #
 
-# Count the number of times each point appears: 1 = first fire, 2 = 2nd, etc.
+# Count the number of times each point appears: 1 = 1st fire, 2 = 2nd, etc.
   get_fire_order = function(df) {
     df <- df %>% 
       group_by(ptid) %>% 
@@ -326,6 +323,18 @@ x.fires.noevt <- x.fires.noevt %>% anti_join(., frp2000_1)
 
 ```
 
+
+```{r, echo = FALSE}
+
+# new strategy: remove all points that have an FRP reading wthout an associated fire ID
+# this step constrains points to only those within identified fire boundaries
+
+tmp <- subset(x.fires.noevt, is.na(fireid) & !is.na(frp))
+x.fires.noevt <- x.fires.noevt %>% filter(!(ptid %in% tmp$ptid))
+                                          
+```
+
+
 ```{r, echo = FALSE}
 
 # ---------------------------------------------------------------- #
@@ -334,27 +343,6 @@ x.fires.noevt <- x.fires.noevt %>% anti_join(., frp2000_1)
 
 x.fires.noevt <- get_fire_order(x.fires.noevt)
 ```
-
-After processing, the same point id has this format:
-
-`r x.fires.noevt %>%
-  filter(ptid == 5767) %>% 
-  kable() %>%
-  kable_styling()`
-  
-Fire year is assumed to be MODIS year for all fires 2002 - 2016. Other notes:
-
-  * FRP = NA if the fire was prior to the MODIS era (documented only through the BLM history database)  
-  * FRP pixels without a corresponding BLM database fire have BLM fire ID = NA  
-  * BLM fires after 2001 without a corresponding FRP are excluded; although the fire could've been missed due to clouds, it could also have been that the area didn't burn (the GIS database does not differentiate between burned and unburned areas )
-
-###EVT classes
-
-After EVT classes are added back to the dataframe, the process is to:
-
-1. Determine EVT class with the greatest proportion in each 1-km MODIS pixel
-2. Calculate area of that EVT class in each pixel
-3. Remove pixels in which none of the classes had a majority
 
 ```{r, echo = FALSE}
 
@@ -373,7 +361,36 @@ x.fires.evt <- merge(x.fires.noevt, x.classes, by = c("ptid"), all.x = T)
 
 
 ```
+The ingested dataset has redundancies because FRP pixels are paired with each coincident fire perimeter from all previous years. Example of a point with multiple associated fires (without class info):
 
+`r x.noclasses %>%
+          filter(ptid == x.fires.evt[x.fires.evt$burn_num == 4, ][[1]][1]) %>% 
+          arrange(fire_year) %>% 
+          kable() %>%
+          kable_styling()`
+
+
+After processing, the same point id has this format:
+
+`r x.fires.noevt %>%
+  filter(ptid == x.fires.evt[x.fires.evt$burn_num == 4,][[1]][1]) %>% 
+  kable() %>%
+  kable_styling()`
+  
+Fire year is assumed to be MODIS year for all fires 2002 - 2016. Other notes:
+
+  * FRP = NA if the fire was prior to the MODIS era (documented only through the BLM history database)  
+  * FRP pixels without a corresponding BLM database fire have BLM fire ID = NA  
+  * Points with an associated BLM fire ID after 2001 but without a corresponding FRP are excluded; although the fire could've been missed due to clouds, it could also have been that the area didn't burn (the GIS database does not differentiate between burned and unburned areas within fire perimeters)
+  * Satellite 0 = Terra, 1 = Aqua
+
+###EVT classes
+
+After EVT classes are added back to the dataframe, the process is to:
+
+1. Determine EVT class with the greatest proportion in each 1-km MODIS pixel
+2. Calculate area of that EVT class in each pixel
+3. Remove pixels in which none of the classes had a majority
 
 ```{r, echo = FALSE, warning = F}
 
@@ -414,211 +431,8 @@ x.fires.evt <- merge(x.fires.noevt, x.classes, by = c("ptid"), all.x = T)
   arrange(fire_year) %>% 
   kable() %>%
   kable_styling()`
-  
-  
-```{r, echo = F, warning = F}
 
-# attempt to correct for the bowtie effect -- MEDIAN
 
-temp.all <- x.fires.evt %>% group_by(sample) %>% summarize(frp_mean = mean(frp), frp_med = median(frp))
-
-fit_med <- lm(frp_med ~ poly(sample, 2, raw=TRUE), data = temp.all)
-
-coeff0 <- summary(fit_med)$coefficients[1, 1]
-coeff1 <- summary(fit_med)$coefficients[2, 1]
-coeff2 <- summary(fit_med)$coefficients[3, 1]
-
-temp.all$fit_med <- coeff0 + (coeff1 * temp$sample) + (coeff2 * temp.all$sample^2)
-
-ggplot(temp.all, aes(sample, frp_med)) + 
-  geom_point() + 
-  geom_line(data = temp.all, aes(sample, fit_med, color = 'red'), size = 1.2) +
-  theme_bw()
-```
- 
-```{r, echo = F,warning = FALSE}
-
-#Make adjustments - MEDIAN
-frp.min <- min(temp.all$fit_med, na.rm = T)
-
-# Apply the minimum across the fit curve to calculate an adjustment ratio
-temp.all$adj_med <- frp.min/temp.all$fit_med
-
-# Multiply the actual frp by that adjustment 
-temp.all$frp_med_new <- temp.all$frp_med * temp.all$adj_med
-
-ggplot(temp.all, aes(sample, frp_med_new)) + geom_point() + theme_bw()
-
-
-```
-
-
-```{r, echo=FALSE, warning=FALSE}
-
-# MEAN
-
-fit_mean <- lm(frp_mean ~ poly(sample, 2, raw = TRUE), data = temp.all)
-
-coeff0 <- summary(fit_mean)$coefficients[1, 1]
-coeff1 <- summary(fit_mean)$coefficients[2, 1]
-coeff2 <- summary(fit_mean)$coefficients[3, 1]
-
-temp.all$fit_mean <- coeff0 + (coeff1 * temp.all$sample) + (coeff2 * temp.all$sample^2)
-
-ggplot(temp.all, aes(sample, frp_mean)) + 
-  geom_point() + 
-  geom_line(data = temp.all, aes(sample, fit_mean, color = 'Aqua'), size = 1.2) +
-  theme_bw()
-```
- 
-```{r, echo = F, warning=F,message=F}
-
-#Make adjustments - MEAN
-frp.min <- min(temp.all$fit_mean, na.rm = T)
-
-# Apply the minimum across the fit curve to calculate an adjustment ratio
-temp.all$adj_mean <- frp.min/temp.all$fit_mean
-
-# Multiply the actual frp by that adjustment 
-temp.all$frp_mean_new <- temp.all$frp_mean * temp.all$adj_mean
-
-ggplot(temp.all, aes(sample, frp_mean_new)) + geom_point() + theme_bw()
-
-```
-
-
-```{r, echo=F, warning=FALSE}
-
-# Calculate polynomial fit - MEDIAN - Terra
-
-x.fires.evt.terra <- subset(x.fires.evt, satellite == '0')
-temp.t <- x.fires.evt.terra %>% group_by(sample) %>% summarize(frp_mean = mean(frp), frp_med = median(frp))
-
-fit_med <- lm(frp_med ~ poly(sample, 2, raw = TRUE), data = temp.t)
-
-coeff0 <- summary(fit_med)$coefficients[1, 1]
-coeff1 <- summary(fit_med)$coefficients[2, 1]
-coeff2 <- summary(fit_med)$coefficients[3, 1]
-
-temp.t$fit_med <- coeff0 + (coeff1 * temp.t$sample) + (coeff2 * temp.t$sample^2)
-
-ggplot(temp.t, aes(sample, frp_med)) + 
-  geom_point() + 
-  geom_line(data = temp.t, aes(sample, fit_med, color = 'Terra'), size = 1.2) +
-  theme_bw()
-
-```
-
-```{r,echo=F, warning=F}
-
-# Calculate polynomial fit - MEDIAN - Aqua
-
-x.fires.evt.aqua <- subset(x.fires.evt, satellite == '1')
-temp.a <- x.fires.evt.aqua %>% group_by(sample) %>% summarize(frp_mean = mean(frp), frp_med = median(frp))
-
-fit_med <- lm(frp_med ~ poly(sample, 2, raw = TRUE), data = temp.a)
-
-coeff0 <- summary(fit_med)$coefficients[1, 1]
-coeff1 <- summary(fit_med)$coefficients[2, 1]
-coeff2 <- summary(fit_med)$coefficients[3, 1]
-
-temp.a$fit_med <- coeff0 + (coeff1 * temp.a$sample) + (coeff2 * temp.a$sample^2)
-
-ggplot(temp.a, aes(sample, frp_med)) + 
-  geom_point() + 
-  geom_line(data = temp.a, aes(sample, fit_med, color = 'Terra'), size = 1.2) +
-  theme_bw()
-
-```
-
-
-```{r, echo=FALSE, warning=FALSE}
-
-# plot of all median points (no satellite distinction) and separately calculated fits
-ggplot(temp.all, aes(sample, frp_med)) + 
-  geom_point() + 
-  geom_line(data = temp.a, aes(sample, fit_med, color = 'aqua'), size = 1.2) +
-  geom_line(data = temp.t, aes(sample, fit_med, color = 'terra'), size = 1.2) +
-  theme_bw()
-
-```
-
-```{r, echo=F, warning=FALSE}
-
-# Correct separately - AQUA
-
-#Make adjustments - MEDIAN - AQUA
-frp.min <- min(temp.a$fit_med, na.rm = T)
-
-# Apply the minimum across the fit curve to calculate an adjustment ratio
-temp.a$adj_med <- frp.min/temp.a$fit_med
-
-# Now associate the sample # in the full database with the adjustment ratio
-merge.a <- left_join(x.fires.evt.aqua, distinct(dplyr::select(temp.a, sample, adj_med)), by = "sample")
-
-# Multiply the actual frp by that adjustment 
-merge.a$frp_adj <- merge.a$frp * merge.a$adj_med
-
-```
-
-
-```{r, echo=F, warning=FALSE}
-
-# Look at improvement in median for AQUA
-
-test.a <- merge.a %>% group_by(sample) %>% summarize(frp_med = median(frp_adj))
-
-ggplot(test.a, aes(sample, frp_med)) + geom_point(color = "blue") +
-  geom_point(data=temp.a, aes(sample, frp_med), color = "black") + scale_y_log10()
-
-```
-
-```{r, echo=F, warning=FALSE}
-
-# Correct separately - TERRA
-
-#Make adjustments - MEDIAN 
-frp.min <- min(temp.t$fit_med, na.rm = T)
-
-# Apply the minimum across the fit curve to calculate an adjustment ratio for each sample
-temp.t$adj_med <- frp.min/temp.t$fit_med
-
-# Now associate the sample # in the full database with the adjustment ratio
-merge.t <- left_join(x.fires.evt.terra, distinct(dplyr::select(temp.t, sample, adj_med)), by = "sample")
-
-# Multiply the actual frp by that adjustment 
-merge.t$frp_adj <- merge.t$frp * merge.t$adj_med
-
-```
-
-
-```{r, echo=F, warning=FALSE}
-
-# Look at improvement in median for TERRA
-
-test.t <- merge.t %>% group_by(sample) %>% summarize(frp_med = median(frp_adj))
-
-ggplot(test.t, aes(sample, frp_med)) + geom_point(color = "blue") +
-  geom_point(data=temp.t, aes(sample, frp_med))
-
-```
-
-
-```{r}
-# combine the corrected datasets
-
-
-x.fires.evt.nosat <- subset(x.fires.evt, is.na(satellite))
-x.fires.evt.nosat$adj_med <- NA
-x.fires.evt.nosat$frp_adj <- NA
-
-x.fires.evt.new <- rbind(merge.a, merge.t, x.fires.evt.nosat)
-
-```
-
-
-
-  
 ###Summary stats
   
 ```{r, echo = F}
