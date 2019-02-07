@@ -47,6 +47,35 @@ ggplot(x.fires.evt, aes(sample, frp, group = satellite, color = satellite)) + ge
 
 ```
 
+```{r}
+# t - manually calculate line
+
+
+points <- data.frame('x' = c(100,200,250,300, 400,500,600,700,800, 900,1000,1050, 1100 ,1150, 1200,1300), 'y'= c(6500, 4000, 3300,2700,2100,1800,1550, 1520, 1750,2000, 2400,2750, 3250, 4000, 5000, 8000))
+
+ggplot(x.fires.evt.t, aes(sample, frp)) + geom_point() + scale_x_continuous(breaks = seq(0, 1354, by = 100)) + scale_y_continuous(breaks = seq(0, 10000, by = 500)) + geom_line(data = points, aes(x,y), color = 'red')
+
+# get equation
+fit_t.tp <- lm(y ~ poly(x, 2, raw = TRUE), data = points)
+coeff0 <- summary(fit_t.tp)$coefficients[1, 1]
+coeff1 <- summary(fit_t.tp)$coefficients[2, 1]
+coeff2 <- summary(fit_t.tp)$coefficients[3, 1]
+points$fit <- coeff0 + (coeff1 * points$x) + (coeff2 * (points$x^2))
+
+ggplot(x.fires.evt.t, aes(sample, frp)) + geom_point() + scale_x_continuous(breaks = seq(0, 1354, by = 100)) + scale_y_continuous(breaks = seq(0, 10000, by = 500)) + geom_line(data = points, aes(x, fit), color = 'red')
+
+x.fires.evt.t$fit
+
+frp.min <- min(x.fires.evt.t$fit_all, na.rm = T)
+
+# Apply the minimum across the fit curve to calculate an adjustment ratio for each sample
+x.fires.evt.t$adj_all <- frp.min/x.fires.evt.t$fit_all
+
+# Multiply the actual frp by that adjustment 
+x.fires.evt.t$frp_adj_all <- x.fires.evt.t$frp * x.fires.evt.t$adj_all
+
+```
+
 
 
 
@@ -94,8 +123,8 @@ When applied to the raw FRP values, the correction looks ok but not great. The l
 
 ggplot(x.fires.evt.t, aes(sample, frp)) + 
   geom_point() +
-  geom_point(data = x.fires.evt.t, aes(sample, frp_adj_all), color = "blue") +
-  scale_y_log10()
+  geom_point(data = x.fires.evt.t, aes(sample, frp_adj_all), color = "blue") #+
+  #scale_y_log10()
 ```
 
 
